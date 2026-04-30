@@ -1,0 +1,30 @@
+{
+  "name": "local-web-app-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint  --ext .vue,.js,.jsx,.ts,.tsx",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "marked": "^17.0.1",
+    "vue": "^3.5.0",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/vue": "^8.1.0",
+    "@vitejs/plugin-vue": "^5.2.0",
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^28.0.0",
+    "typescript": "~5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^3.0.0",
+    "vue-tsc": "^2.2.0"
+  }
+}

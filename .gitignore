@@ -1,0 +1,70 @@
+# IDE
+.idea/
+
+# Claude Code (allow settings.json, agents/, and skills/)
+.claude/*
+!.claude/settings.json
+!.claude/agents/
+!.claude/skills/
+.ralph/
+.ralph.stop
+
+# OS
+.DS_Store
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Go build artifacts
+backend/server
+backend/bin/
+backend/tmp/
+
+# Goa generated code
+backend/internal/api/gen/
+
+# Test coverage
+coverage/
+backend/coverprofile.out
+
+# SQLite database files
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.claude-sandbox.example
+
+# Logs
+*.log
+logs/
+
+# Dataset placeholder for Docker Compose
+.dataset-placeholder/
+
+# Local config (gitignored; use config.yaml.example as template)
+config.yaml
+
+# Claude sandbox local mounts (gitignored; use .claude-sandbox.example.yaml as template)
+.claude-sandbox.yaml
+
+# Worktrees (ephemeral local state for parallel agent execution)
+.worktrees/
+
+# E2E test artifacts
+.e2e/
+
+# Debug mode output (agent decision logs from ralph-auto-debug)
+.ralph-debug/
+.debug-context
+
+# Python cache
+__pycache__/
+*.pyc
