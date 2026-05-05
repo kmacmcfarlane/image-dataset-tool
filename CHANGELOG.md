@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### B-002: Fix backend dev container crash on startup due to unwritable DATA_DIR
+- Added `DATA_DIR=/build/data` to backend service environment in `docker-compose.dev.yml`, pointing to the already-mounted `backend_dev_data` named volume, preventing fatal startup crash when `os.UserHomeDir()` resolves to a root-owned path
+
 ### S-004: Pipeline worker framework: consumers, retry, DLQ, rate limiting, SSE
 - `pipeline.Consumer` base type: pull-based NATS workers with ACK/NAK/DLQ routing, exponential backoff, InProgress keepalive, per-provider rate limiting, and disk-full auto-pause
 - `JobTracker` for atomic DB counter operations and job completion detection (`completed + failed = total` with pagination-exhausted gate)

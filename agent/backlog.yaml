@@ -767,7 +767,7 @@ stories:
   - id: B-002
     title: "Backend dev container crashes on startup: DATA_DIR resolves to unwritable root path"
     priority: 60
-    status: todo
+    status: uat
     requires: []
     acceptance:
       - "Backend dev container starts successfully with make up-dev"

@@ -11,6 +11,7 @@ services:
       - backend_go_mod_cache:/home/gouser/go/pkg/mod
     environment:
       - PORT=8080
+      - DATA_DIR=/build/data
       - GOPATH=/home/gouser/go
       - GOCACHE=/home/gouser/.cache/go-build
       - GOMODCACHE=/home/gouser/go/pkg/mod
