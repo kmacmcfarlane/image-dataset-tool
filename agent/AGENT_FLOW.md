@@ -146,12 +146,32 @@ approval** of a spike's output — not just the spike's completion.
 - Use case: research spikes produce recommendations that the user must evaluate
   before implementation stories can begin.
 
+#### Research spikes — preferred workflow
+
+Spikes follow an **autonomous research + user review** model:
+
+1. **Autonomous phase**: the agent runs the spike autonomously (Ralph mode). It
+   performs web searches (via subagents), evaluates libraries, writes proof-of-concept
+   code, and produces a recommendation document in `docs/`. The spike should use
+   subagents with web search to explore the space thoroughly.
+2. **Review phase**: the spike enters `uat` via the normal story lifecycle. The user
+   reviews the recommendation document and either approves (`done`) or provides
+   feedback (`uat_feedback`) for iteration.
+3. **Gate release**: downstream stories using `requires_reviewed` become eligible
+   only after the user moves the spike to `done`.
+
+Spikes are **not** `interactive: true` by default. They run autonomously and produce
+artifacts for review. Only mark a spike `interactive: true` if it genuinely cannot
+proceed without real-time user input (e.g., the user must provide credentials that
+cannot be stored, or must physically operate hardware).
+
 #### Interactive stories (`interactive: true`)
 
 A story with `interactive: true` in its backlog entry must be worked in an
 interactive Claude session, not via autonomous Ralph. The orchestrator skips these
-stories in autonomous mode. This is used for spikes that require user
-participation (credentials, evaluation, real-time collaboration).
+stories in autonomous mode (`--non-interactive` flag). This is reserved for stories
+that require real-time user participation and cannot produce useful output
+autonomously.
 
 TODO: Upstream these workflow changes to claude-templates/local-web-app and the
 checkpoint-sampler project after story generation is complete.
