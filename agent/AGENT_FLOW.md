@@ -134,6 +134,28 @@ A story may declare a `requires` field listing the IDs of stories that must be c
 - `requires` dependencies are transitive in effect: if S-009 requires S-008, and S-008 requires S-007, then S-009 cannot start until both S-007 and S-008 are done or uat.
 - A story may be both `requires`-gated and `blocked` — these are independent conditions.
 
+#### Spike-reviewed gates (`requires_reviewed`)
+
+A story may declare `requires_reviewed: [S-xxx]` to indicate it is blocked until
+the listed stories reach `done` status (not just `uat`). This is stronger than
+`requires` and is used when downstream stories depend on the **user's review and
+approval** of a spike's output — not just the spike's completion.
+
+- `requires_reviewed` stories are not eligible until all listed dependencies have
+  `status: done`.
+- Use case: research spikes produce recommendations that the user must evaluate
+  before implementation stories can begin.
+
+#### Interactive stories (`interactive: true`)
+
+A story with `interactive: true` in its backlog entry must be worked in an
+interactive Claude session, not via autonomous Ralph. The orchestrator skips these
+stories in autonomous mode. This is used for spikes that require user
+participation (credentials, evaluation, real-time collaboration).
+
+TODO: Upstream these workflow changes to claude-templates/local-web-app and the
+checkpoint-sampler project after story generation is complete.
+
 ### 1.3 Review feedback
 
 When a code reviewer or QA expert returns a story to `in_progress`, they record feedback in the `review_feedback` field of the story in backlog.yaml. This field is a free-text string describing what needs to change. The fullstack engineer reads this field when resuming work on the story and clears it when setting status to `review` again.

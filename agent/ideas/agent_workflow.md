@@ -19,3 +19,13 @@ Example:
 ```
 
 ## Ideas
+
+### Upstream `requires_reviewed` and `interactive` workflow features
+* status: needs_approval
+* priority: high
+* source: developer
+The `requires_reviewed` gate and `interactive: true` story flag were added to
+AGENT_FLOW.md for this project. These should be upstreamed to:
+- claude-templates/local-web-app (template AGENT_FLOW.md)
+- checkpoint-sampler project (if applicable)
+The backlog.py CLI may also need updates to validate these new fields.

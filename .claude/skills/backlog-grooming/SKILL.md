@@ -104,6 +104,15 @@ If any stories warrant splitting:
 
 This is its own sub-phase — don't rush it. Good factoring here saves rework later.
 
+### Step 1.5: Interactive and spike-gated stories
+
+For new stories that are research spikes:
+- Ask whether the spike requires interactive user participation (`interactive: true`).
+  Interactive spikes are skipped by Ralph autonomous mode.
+- Ask whether downstream stories should use `requires_reviewed` (blocks until spike
+  reaches `done`, not just `uat`). Use this when the spike produces a recommendation
+  that the user must review before implementation can begin.
+
 **Do NOT move to Phase 2 until the user signals they're done** (e.g., "that's it", "nothing else", "let's see the plan"). The user has context that needs to be interviewed out of them — keep the conversation going.
 
 ---

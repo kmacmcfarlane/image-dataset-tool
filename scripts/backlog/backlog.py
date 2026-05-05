@@ -44,6 +44,8 @@ OPTIONAL_STORY_FIELDS = (
     "blocked_reason",
     "metrics",
     "claimed_by",
+    "requires_reviewed",
+    "interactive",
 )
 
 SCALAR_SET_FIELDS = frozenset(
@@ -287,6 +289,47 @@ def _requires_satisfied(story: CommentedMap, all_stories: list[CommentedMap]) ->
     return True
 
 
+def _requires_reviewed_satisfied(story: CommentedMap, all_stories: list[CommentedMap]) -> bool:
+    """Check if all requires_reviewed dependencies are satisfied (status: done or closed only).
+
+    Unlike _requires_satisfied, this requires the dependency to have been fully
+    reviewed by the user (status: done), not just merged to main (uat).
+    Used for spike stories whose output must be reviewed before dependents can start.
+
+    Handles transitive dependencies and circular dependency detection.
+    """
+    requires_reviewed = story.get("requires_reviewed")
+    if not isinstance(requires_reviewed, list) or len(requires_reviewed) == 0:
+        return True
+
+    status_map = {s.get("id"): s.get("status") for s in all_stories if s.get("id")}
+    requires_map: dict[str, list] = {}
+    for s in all_stories:
+        sid = s.get("id")
+        if sid:
+            reqs = s.get("requires_reviewed")
+            reqs = reqs if isinstance(reqs, list) else []
+            requires_map[sid] = reqs
+
+    satisfied_statuses = frozenset({"done", "closed"})
+
+    def _check(story_id: str, visited: set[str]) -> bool:
+        if story_id in visited:
+            return False  # Circular dependency
+        visited.add(story_id)
+        if status_map.get(story_id) not in satisfied_statuses:
+            return False
+        for dep_id in requires_map.get(story_id, []):
+            if not _check(dep_id, visited):
+                return False
+        return True
+
+    for req_id in requires_reviewed:
+        if not _check(req_id, set()):
+            return False
+    return True
+
+
 def _select_highest_priority(stories: list[CommentedMap]) -> CommentedMap | None:
     """Select highest priority story. Tie-break: lowest ID lexicographically."""
     if not stories:
@@ -338,6 +381,12 @@ def validate_story(
     if "requires" in story and not isinstance(story["requires"], list):
         errors.append(f"{sid}: 'requires' must be a list")
 
+    if "requires_reviewed" in story and not isinstance(story["requires_reviewed"], list):
+        errors.append(f"{sid}: 'requires_reviewed' must be a list")
+
+    if "interactive" in story and not isinstance(story["interactive"], bool):
+        errors.append(f"{sid}: 'interactive' must be a boolean")
+
     if "acceptance" in story:
         if not isinstance(story["acceptance"], list) or len(story["acceptance"]) == 0:
             errors.append(f"{sid}: 'acceptance' must be a non-empty list")
@@ -357,6 +406,11 @@ def validate_story(
             for req in story["requires"]:
                 if req not in all_known_ids:
                     warnings.append(f"{sid}: requires '{req}' not found in any backlog")
+
+        if all_known_ids and "requires_reviewed" in story and isinstance(story["requires_reviewed"], list):
+            for req in story["requires_reviewed"]:
+                if req not in all_known_ids:
+                    warnings.append(f"{sid}: requires_reviewed '{req}' not found in any backlog")
 
         known_fields = set(REQUIRED_STORY_FIELDS) | set(OPTIONAL_STORY_FIELDS)
         for key in story:
@@ -468,6 +522,10 @@ def cmd_query(args) -> int:
     if args.check_requires:
         all_stories = _get_all_stories(backlog_path, done_path)
         results = [s for s in results if _requires_satisfied(s, all_stories)]
+        results = [s for s in results if _requires_reviewed_satisfied(s, all_stories)]
+
+    if args.exclude_interactive:
+        results = [s for s in results if not s.get("interactive")]
 
     fields = [f.strip() for f in args.fields.split(",")] if args.fields else None
     output_stories(results, args.format, fields)
@@ -602,6 +660,12 @@ def cmd_next_work(args) -> int:
 
         all_stories = _get_all_stories(backlog_path, done_path)
         todo = [s for s in todo if _requires_satisfied(s, all_stories)]
+        todo = [s for s in todo if _requires_reviewed_satisfied(s, all_stories)]
+
+        # In non-interactive mode, skip interactive stories
+        non_interactive = getattr(args, "non_interactive", False)
+        if non_interactive:
+            todo = [s for s in todo if not s.get("interactive")]
 
         if todo:
             # Bugs first
@@ -875,18 +939,27 @@ def cmd_status(args) -> int:
     if args.source in ("done", "both"):
         sources.append(done_path)
 
+    interactive_count = 0
+    open_statuses = frozenset({"todo", "in_progress", "review", "testing", "uat", "uat_feedback", "blocked"})
+
     for path in sources:
         data, _ = load_yaml(path)
         for story in data.get("stories") or []:
             status = story.get("status", "unknown")
             counts[status] = counts.get(status, 0) + 1
+            if story.get("interactive") and status in open_statuses:
+                interactive_count += 1
 
     if args.format == "json":
-        json.dump(counts, sys.stdout, ensure_ascii=False)
+        output = dict(counts)
+        output["_interactive_open"] = interactive_count
+        json.dump(output, sys.stdout, ensure_ascii=False)
         sys.stdout.write("\n")
     else:
         yaml = _make_yaml()
         yaml.dump(counts, sys.stdout)
+        if interactive_count > 0:
+            print(f"interactive (open): {interactive_count}")
     return 0
 
 
@@ -976,7 +1049,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--check-requires",
         action="store_true",
         default=False,
-        help="Exclude stories whose requires dependencies are not satisfied (done/uat)",
+        help="Exclude stories whose requires/requires_reviewed dependencies are not satisfied",
+    )
+    p.add_argument(
+        "--exclude-interactive",
+        action="store_true",
+        default=False,
+        help="Exclude stories with interactive: true",
     )
 
     # get
@@ -1018,6 +1097,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["yaml", "json"],
         default=argparse.SUPPRESS,
         help="Output format (overrides global --format)",
+    )
+    p.add_argument(
+        "--non-interactive",
+        action="store_true",
+        default=False,
+        help="Exclude stories with interactive: true (for autonomous Ralph mode)",
     )
 
     # add
