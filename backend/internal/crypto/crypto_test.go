@@ -86,6 +86,52 @@ var _ = Describe("Crypto", func() {
 		})
 	})
 
+	Describe("GenerateKey", func() {
+		var tmpDir string
+
+		BeforeEach(func() {
+			var err error
+			tmpDir, err = os.MkdirTemp("", "crypto-genkey-test-*")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			os.RemoveAll(tmpDir)
+		})
+
+		It("creates a 32-byte key file with mode 0600", func() {
+			keyPath := filepath.Join(tmpDir, "secret.key")
+			err := crypto.GenerateKey(keyPath)
+			Expect(err).NotTo(HaveOccurred())
+
+			info, err := os.Stat(keyPath)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(info.Mode().Perm()).To(Equal(os.FileMode(0600)))
+
+			data, err := os.ReadFile(keyPath)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(data).To(HaveLen(crypto.KeySize))
+		})
+
+		It("returns an error if the file already exists", func() {
+			keyPath := filepath.Join(tmpDir, "secret.key")
+			Expect(os.WriteFile(keyPath, make([]byte, crypto.KeySize), 0600)).To(Succeed())
+
+			err := crypto.GenerateKey(keyPath)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("refusing to overwrite"))
+		})
+
+		It("produces a key loadable by LoadKey", func() {
+			keyPath := filepath.Join(tmpDir, "secret.key")
+			Expect(crypto.GenerateKey(keyPath)).To(Succeed())
+
+			key, err := crypto.LoadKey(keyPath)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(key).To(HaveLen(crypto.KeySize))
+		})
+	})
+
 	Describe("LoadKey", func() {
 		var tmpDir string
 

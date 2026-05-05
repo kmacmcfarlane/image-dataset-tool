@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### B-003: Backend auto-provisions secret.key on first start
+- `crypto.GenerateKey` writes a fresh 32-byte AES-256 key with mode 0600
+- `datadir.EnsureSecretKey` auto-generates the key if absent; no-ops when key already exists
+- `main.go` calls `EnsureSecretKey` before `crypto.LoadKey` so `make up-dev` on a fresh checkout starts without manual key provisioning
+
 ### S-036: Queue admin view: stats, message peek, retry, purge
 - Five new API endpoints for NATS JetStream admin: GET stats, GET peek (paginated), POST retry, DELETE message, POST purge
 - Retry republishes DLQ messages to their original subject (via `X-DLQ-Original-Subject` header) and removes from DLQ
