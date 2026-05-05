@@ -698,7 +698,7 @@ stories:
   - id: S-036
     title: "Queue admin view: stats, message peek, retry, purge"
     priority: 40
-    status: todo
+    status: review
     complexity: medium
     requires: [S-003, S-007]
     acceptance:
