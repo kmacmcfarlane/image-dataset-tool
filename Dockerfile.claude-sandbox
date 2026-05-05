@@ -1,0 +1,21 @@
+# Project-specific tools for image-dataset-tool
+FROM claude-sandbox
+
+# Go toolchain
+RUN curl -fsSL https://go.dev/dl/go1.25.6.linux-amd64.tar.gz | tar -C /usr/local -xz
+ENV PATH="/usr/local/go/bin:$PATH"
+
+# TypeScript / Vue language servers
+RUN npm install -g typescript-language-server typescript && \
+    npm install -g @vtsls/language-server
+
+# Python LSP (Python 3 + venv already in base image)
+RUN npm install -g pyright
+
+# Go language server and test tools (install as claude user so they land in ~/go/bin)
+USER claude
+RUN go install golang.org/x/tools/gopls@latest && \
+    go install github.com/onsi/ginkgo/v2/ginkgo@latest && \
+    go install goa.design/goa/v3/cmd/goa@latest
+USER root
+ENV PATH="/home/claude/go/bin:$PATH"

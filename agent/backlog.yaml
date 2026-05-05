@@ -12,7 +12,7 @@ stories:
   - id: S-001
     title: "Repo skeleton: Go module, Goa, Vue, SQLite, Docker Compose"
     priority: 90
-    status: todo
+    status: uat
     complexity: high
     requires: []
     acceptance:
