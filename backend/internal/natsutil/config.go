@@ -32,6 +32,10 @@ type ConsumerConfig struct {
 	// MaxDeliver is the maximum number of delivery attempts before routing to DLQ.
 	// Default: 5.
 	MaxDeliver int
+
+	// Concurrency is the number of parallel worker goroutines pulling from this consumer.
+	// Default: 1.
+	Concurrency int
 }
 
 // ConsumersConfig holds configuration for all pipeline consumers.
@@ -53,21 +57,25 @@ func DefaultConfig(dataDir string) Config {
 				MaxAckPending: 1,
 				AckWait:       300 * time.Second,
 				MaxDeliver:    5,
+				Concurrency:   1,
 			},
 			MediaProcess: ConsumerConfig{
 				MaxAckPending: 16,
 				AckWait:       60 * time.Second,
 				MaxDeliver:    5,
+				Concurrency:   4, // CPU-bound, default to GOMAXPROCS-ish
 			},
 			MediaCaption: ConsumerConfig{
 				MaxAckPending: 8,
 				AckWait:       120 * time.Second,
 				MaxDeliver:    5,
+				Concurrency:   4,
 			},
 			MediaExport: ConsumerConfig{
 				MaxAckPending: 4,
 				AckWait:       60 * time.Second,
 				MaxDeliver:    5,
+				Concurrency:   2,
 			},
 		},
 	}

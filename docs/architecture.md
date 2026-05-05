@@ -146,12 +146,24 @@ media.dlq                  →  dead letter (max retries exceeded)
 
 ### 5.3 Consumer model
 
-Each subject has a durable pull consumer. Workers pull messages and ACK/NAK:
-- **ACK** → message removed; completion handler publishes to the next pipeline stage
-- **NAK with delay** → retry with exponential backoff
+Each subject has a durable pull consumer. The `internal/pipeline` package provides
+the `Consumer` type — a base worker framework that:
+- Pulls messages from NATS, deserializes `Envelope` (job_id, trace_id, payload)
+- Invokes a stage-specific `Handler` function
+- **ACK** → DB counter incremented first, then message removed
+- **NAK with delay** → retry with exponential backoff (2^attempt seconds, capped at 60s)
 - **Max deliveries exceeded** → message routed to `media.dlq`
+- **msg.InProgress()** → sent periodically to prevent AckWait redelivery during long operations
+- **Disk full (ENOSPC)** → NAK with 30s delay; N consecutive disk errors auto-pause the job
+- **Structured slog** per message: job_id, trace_id, subject, duration_ms, attempt, status
 
 Backpressure via `MaxAckPending` per consumer — limits in-flight messages per stage.
+
+Graceful shutdown: `ShutdownCoordinator` orchestrates SIGTERM → cancel context → stop
+consumers (in-flight handlers finish) → stop SSE → shutdown NATS → close SQLite (30s timeout).
+
+Stale job detection: on startup, `DetectStaleJobs` cross-checks NATS pending counts;
+jobs with status='running' but no pending messages are marked 'interrupted'.
 
 ### 5.4 Worker pools & rate limiting
 
