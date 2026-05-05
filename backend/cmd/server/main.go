@@ -30,7 +30,12 @@ func main() {
 		logrus.Fatalf("Failed to bootstrap data directory: %v", err)
 	}
 
-	// 2. Load encryption key — fail fast with clear error on missing/bad perms.
+	// 2a. Auto-provision secret.key on first start (dev convenience).
+	if err := datadir.EnsureSecretKey(dir); err != nil {
+		logrus.Fatalf("Failed to provision encryption key: %v", err)
+	}
+
+	// 2b. Load encryption key — fail fast with clear error on missing/bad perms.
 	keyPath := datadir.SecretKeyPath(dir)
 	_, err = crypto.LoadKey(keyPath)
 	if err != nil {

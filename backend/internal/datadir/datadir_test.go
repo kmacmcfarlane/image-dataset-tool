@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/crypto"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/datadir"
 )
 
@@ -68,6 +69,57 @@ var _ = Describe("Datadir", func() {
 
 			_, err = datadir.Bootstrap()
 			Expect(err).NotTo(HaveOccurred())
+		})
+	})
+
+	Describe("EnsureSecretKey", func() {
+		var tmpDir string
+
+		BeforeEach(func() {
+			var err error
+			tmpDir, err = os.MkdirTemp("", "datadir-ensurekey-test-*")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			os.RemoveAll(tmpDir)
+		})
+
+		It("generates a valid secret.key when none exists", func() {
+			err := datadir.EnsureSecretKey(tmpDir)
+			Expect(err).NotTo(HaveOccurred())
+
+			keyPath := datadir.SecretKeyPath(tmpDir)
+			info, err := os.Stat(keyPath)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(info.Mode().Perm()).To(Equal(os.FileMode(0600)))
+
+			data, err := os.ReadFile(keyPath)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(data).To(HaveLen(crypto.KeySize))
+		})
+
+		It("is idempotent — does not overwrite an existing key", func() {
+			keyPath := datadir.SecretKeyPath(tmpDir)
+			existing := make([]byte, crypto.KeySize)
+			for i := range existing {
+				existing[i] = 0xAB
+			}
+			Expect(os.WriteFile(keyPath, existing, 0600)).To(Succeed())
+
+			Expect(datadir.EnsureSecretKey(tmpDir)).To(Succeed())
+
+			data, err := os.ReadFile(keyPath)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(data).To(Equal(existing))
+		})
+
+		It("generated key is loadable by crypto.LoadKey", func() {
+			Expect(datadir.EnsureSecretKey(tmpDir)).To(Succeed())
+
+			key, err := crypto.LoadKey(datadir.SecretKeyPath(tmpDir))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(key).To(HaveLen(crypto.KeySize))
 		})
 	})
 

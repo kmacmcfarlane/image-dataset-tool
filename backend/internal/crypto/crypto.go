@@ -26,6 +26,26 @@ var ErrInvalidKeySize = errors.New("encryption key must be exactly 32 bytes")
 // ErrDecryptionFailed indicates that decryption failed (wrong key or corrupted data).
 var ErrDecryptionFailed = errors.New("decryption failed: wrong key or corrupted ciphertext")
 
+// GenerateKey generates a new random 32-byte AES-256 key and writes it to path
+// with mode 0600. Returns an error if the file already exists.
+func GenerateKey(path string) error {
+	// Refuse to overwrite an existing key.
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Errorf("secret.key already exists at %s: refusing to overwrite", path)
+	}
+
+	key := make([]byte, KeySize)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		return fmt.Errorf("generate key bytes: %w", err)
+	}
+
+	if err := os.WriteFile(path, key, 0600); err != nil {
+		return fmt.Errorf("write secret.key: %w", err)
+	}
+
+	return nil
+}
+
 // LoadKey reads and validates the encryption key from the given path.
 // It verifies the file exists and has mode 0600.
 func LoadKey(path string) ([]byte, error) {
