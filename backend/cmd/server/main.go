@@ -14,6 +14,7 @@ import (
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/crypto"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/datadir"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/natsutil"
+	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/reconciler"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
 	goahttp "goa.design/goa/v3/http"
 )
@@ -45,7 +46,12 @@ func main() {
 		logrus.Fatalf("Failed to run database migrations: %v", err)
 	}
 
-	// 4. Start embedded NATS JetStream server.
+	// 4. Run filesystem reconciler (must complete before NATS consumers start).
+	if err := reconciler.Run(db, dir); err != nil {
+		logrus.Fatalf("Failed to run filesystem reconciler: %v", err)
+	}
+
+	// 5. Start embedded NATS JetStream server.
 	natsDataDir := filepath.Join(dir, "nats")
 	natsCfg := natsutil.DefaultConfig(natsDataDir)
 	natsSrv, err := natsutil.New(natsCfg)

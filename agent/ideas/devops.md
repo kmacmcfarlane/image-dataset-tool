@@ -43,3 +43,9 @@ Add a lightweight `make up-dev` health-check target that starts the dev stack, p
 * priority: medium
 * source: developer
 Add `npm audit --audit-level=high` as a required check in the CI pipeline so high/critical vulnerabilities are caught before they accumulate across multiple release cycles.
+
+### Dev data provisioning for smoke tests
+* status: needs_approval
+* priority: medium
+* source: qa
+The `make logs-snapshot` smoke test always fails at crypto key load because no `secret.key` is provisioned in the fresh dev volume. A `make setup-dev-data` target or auto-generate-key-on-first-boot behavior would allow the backend to fully start during smoke tests.

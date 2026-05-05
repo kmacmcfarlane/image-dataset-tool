@@ -19,3 +19,9 @@ Example:
 ```
 
 ## Ideas
+
+### Caption study reconciliation from filesystem
+* status: needs_approval
+* priority: low
+* source: developer
+Currently caption studies only exist in DB. If a study is referenced in a sample manifest but doesn't exist in DB, the caption is skipped. A future story could define a `caption_studies` manifest format to make studies reconstructable from disk.

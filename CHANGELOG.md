@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-005: Filesystem-as-truth reconciler
+- Startup reconciler scans `$DATA_DIR/projects/` manifests and syncs SQLite: adds missing, removes stale, updates divergent rows (manifest always wins)
+- Captions from sample `.json` manifests imported into `captions` table with FK-checked `study_id`
+- Malformed JSON logged as warning and skipped (file preserved); reconciler is idempotent
+- Gated startup: reconciler completes before NATS consumers start
+
 ### B-002: Fix backend dev container crash on startup due to unwritable DATA_DIR
 - Added `DATA_DIR=/build/data` to backend service environment in `docker-compose.dev.yml`, pointing to the already-mounted `backend_dev_data` named volume, preventing fatal startup crash when `os.UserHomeDir()` resolves to a root-owned path
 

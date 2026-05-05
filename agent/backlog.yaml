@@ -104,7 +104,7 @@ stories:
   - id: S-005
     title: "Filesystem-as-truth reconciler"
     priority: 75
-    status: todo
+    status: uat
     complexity: medium
     requires: [S-002]
     acceptance:
