@@ -11,6 +11,8 @@ import (
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api"
 	health "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/health"
 	healthsvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/health/server"
+	genqueues "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/queues"
+	queuessvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/queues/server"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/crypto"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/datadir"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/natsutil"
@@ -59,7 +61,6 @@ func main() {
 		logrus.Fatalf("Failed to start embedded NATS server: %v", err)
 	}
 	defer natsSrv.Shutdown()
-	_ = natsSrv // will be used by workers in future stories
 
 	// --- HTTP server ---
 
@@ -70,9 +71,11 @@ func main() {
 
 	// Create service implementations
 	healthSvc := api.NewHealthService()
+	queuesSvc := api.NewQueuesService(natsSrv.JS())
 
 	// Create endpoints
 	healthEndpoints := health.NewEndpoints(healthSvc)
+	queuesEndpoints := genqueues.NewEndpoints(queuesSvc)
 
 	// Create HTTP mux
 	mux := goahttp.NewMuxer()
@@ -80,6 +83,10 @@ func main() {
 	// Create and mount health server
 	healthServer := healthsvr.New(healthEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
 	healthsvr.Mount(mux, healthServer)
+
+	// Create and mount queues server
+	queuesServer := queuessvr.New(queuesEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
+	queuessvr.Mount(mux, queuesServer)
 
 	// Create HTTP server
 	addr := fmt.Sprintf(":%s", port)
