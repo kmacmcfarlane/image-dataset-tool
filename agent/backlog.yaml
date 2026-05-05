@@ -786,7 +786,7 @@ stories:
   - id: B-003
     title: "Backend fails to start in dev Docker stack due to missing secret.key auto-provisioning"
     priority: 60
-    status: todo
+    status: uat
     requires: []
     acceptance:
       - "Backend starts successfully with make up-dev on a fresh checkout without manual key provisioning"

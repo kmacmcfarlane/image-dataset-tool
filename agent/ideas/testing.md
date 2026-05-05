@@ -19,3 +19,9 @@ Example:
 ```
 
 ## Ideas
+
+### Add E2E test infrastructure (Playwright + `make test-e2e`)
+* status: needs_approval
+* priority: high
+* source: qa
+The project has no Playwright E2E tests, no `frontend/e2e/` directory, and no `test-e2e` Makefile target. The QA gate requires `make test-e2e` for story acceptance, so this infrastructure should be scaffolded to enable proper E2E verification for future stories.
