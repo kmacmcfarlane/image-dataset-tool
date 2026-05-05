@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### B-001: Fix 6 high-severity npm audit vulnerabilities in frontend dev dependencies
+- Updated `@typescript-eslint/eslint-plugin` and `@typescript-eslint/parser` from v6 to v8.59.2 to resolve 6 high-severity ReDoS vulnerabilities (minimatch via @typescript-eslint/typescript-estree)
+- Zero vulnerabilities reported by `npm audit` post-fix; lint and tests remain passing
+
 ### S-002: Data dir bootstrap, crypto helpers, manifest read/write
 - Startup sequence: Bootstrap $DATA_DIR → LoadKey (validates 0600 perms, fatal on failure) → OpenDB (WAL, FK ON, 5s busy) → Migrate (all 11 tables from database.md with CASCADE + UNIQUE constraints)
 - Atomic file writer (write-to-temp-then-rename) used by ProjectManifest and SampleMetadata JSON serialization

@@ -752,7 +752,7 @@ stories:
   - id: B-001
     title: "Fix 6 high-severity npm audit vulnerabilities in frontend dev dependencies"
     priority: 40
-    status: todo
+    status: uat
     requires: []
     acceptance:
       - "Running `npm audit` in `frontend/` reports zero high or critical severity vulnerabilities"
