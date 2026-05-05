@@ -67,6 +67,20 @@ python3 scripts/backlog/backlog.py validate --strict
 | 2 | Story not found |
 | 3 | File error (cannot read/write) |
 
+## Spike Dependencies
+
+Stories can use `requires_reviewed: [S-xxx]` to block until the listed stories
+reach `done` status (not just `uat`). This is stronger than `requires` and is
+used when downstream stories depend on user review of a spike's output.
+
+Stories with `interactive: true` require an interactive Claude session (not Ralph
+auto mode). Use `--non-interactive` with `next-work` to skip these in autonomous
+loops:
+
+```bash
+python3 scripts/backlog/backlog.py next-work --non-interactive --format json
+```
+
 ## Important Rules
 
 - New stories always get `status: todo`

@@ -42,7 +42,8 @@ backlog.py query [--status STATUS[,STATUS,...]]
 | `--id-prefix` | Filter by ID prefix (S, B, R, W, M) |
 | `--complexity` | Comma-separated complexity filter (low, medium, high) |
 | `--has-field` | Only stories with this field non-empty |
-| `--check-requires` | Exclude stories whose `requires` dependencies are not satisfied (done/uat) |
+| `--check-requires` | Exclude stories whose `requires` (done/uat) or `requires_reviewed` (done only) dependencies are not satisfied |
+| `--exclude-interactive` | Exclude stories with `interactive: true` |
 | `--source` | Which file(s) to search. Default: `active` |
 | `--fields` | Comma-separated fields to include in output |
 
@@ -116,7 +117,7 @@ backlog.py list-ids --source both | grep "^S-"
 ### `next-work` — Select next eligible story
 
 ```
-backlog.py next-work [--fields FIELD[,FIELD,...]] [--format yaml|json]
+backlog.py next-work [--fields FIELD[,FIELD,...]] [--format yaml|json] [--non-interactive]
 ```
 
 Implements the deterministic work-selection algorithm from AGENT_FLOW.md section 3.1 in a single call. Returns the selected story with an additional `queue` field indicating which queue it came from.
@@ -124,6 +125,9 @@ Implements the deterministic work-selection algorithm from AGENT_FLOW.md section
 | Flag | Description |
 |------|-------------|
 | `--fields` | Comma-separated fields to include in output (`queue` is always included) |
+| `--non-interactive` | Exclude stories with `interactive: true` (for autonomous Ralph mode) |
+
+**Dependency gates:** For todo stories, both `requires` (done/uat/uat_feedback/closed) and `requires_reviewed` (done/closed only) must be satisfied.
 
 **Queue values:**
 
@@ -148,6 +152,9 @@ backlog.py next-work --format json
 
 # Compact view
 backlog.py next-work --fields id,title,priority,queue
+
+# Autonomous mode (skip interactive spikes)
+backlog.py next-work --non-interactive --format json
 ```
 
 ---
@@ -333,6 +340,8 @@ backlog.py validate --source both      # Validate both files
   status: todo                 # Required. Enum: todo, in_progress, review, testing, uat, uat_feedback, done, blocked
   complexity: medium           # Optional (encouraged). Enum: low, medium, high
   requires: [S-082]            # Required. List of story IDs (may be empty)
+  requires_reviewed: [S-080]   # Optional. List of story IDs that must be done (not just uat)
+  interactive: true            # Optional. Boolean. Story requires interactive user session
   acceptance:                  # Required. Non-empty list of testable criteria
     - "FE: Criterion 1"       # Prefix: FE, BE, E2E, OPS, DOC, AGENT
     - "BE: Criterion 2"
