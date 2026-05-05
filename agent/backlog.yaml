@@ -146,7 +146,7 @@ stories:
   - id: S-007
     title: "Frontend shell: Vue Router, SSE composable, layout, theming"
     priority: 75
-    status: todo
+    status: review
     complexity: medium
     requires: [S-001]
     acceptance:
