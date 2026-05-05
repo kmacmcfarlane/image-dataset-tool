@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	logrus "github.com/sirupsen/logrus"
 
@@ -12,6 +13,7 @@ import (
 	healthsvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/health/server"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/crypto"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/datadir"
+	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/natsutil"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
 	goahttp "goa.design/goa/v3/http"
 )
@@ -42,6 +44,16 @@ func main() {
 	if err := store.Migrate(db); err != nil {
 		logrus.Fatalf("Failed to run database migrations: %v", err)
 	}
+
+	// 4. Start embedded NATS JetStream server.
+	natsDataDir := filepath.Join(dir, "nats")
+	natsCfg := natsutil.DefaultConfig(natsDataDir)
+	natsSrv, err := natsutil.New(natsCfg)
+	if err != nil {
+		logrus.Fatalf("Failed to start embedded NATS server: %v", err)
+	}
+	defer natsSrv.Shutdown()
+	_ = natsSrv // will be used by workers in future stories
 
 	// --- HTTP server ---
 
