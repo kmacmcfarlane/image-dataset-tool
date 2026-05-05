@@ -144,21 +144,26 @@ sample's `.json` manifest keyed by study slug.
 
 ### job_runs
 
-| Column          | Type    | Notes                                           |
-| --------------- | ------- | ----------------------------------------------- |
-| id              | TEXT PK | UUID                                            |
-| type            | TEXT    | 'ig_pull' / 'caption' / 'export'                |
-| subject_id      | TEXT FK | → subjects.id, nullable                         |
-| study_id        | TEXT FK | → caption_studies.id, nullable (caption jobs)   |
-| status          | TEXT    | 'running' / 'succeeded' / 'failed' / 'cancelled' |
-| total_items     | INTEGER | Total messages published                        |
-| completed_items | INTEGER | Successfully processed                          |
-| failed_items    | INTEGER | Moved to DLQ or max retries                     |
-| started_at      | TEXT    | ISO 8601                                        |
-| finished_at     | TEXT    | ISO 8601, nullable                              |
-| created_at      | TEXT    | ISO 8601                                        |
+| Column               | Type    | Notes                                                        |
+| -------------------- | ------- | ------------------------------------------------------------ |
+| id                   | TEXT PK | UUID                                                         |
+| type                 | TEXT    | 'ig_pull' / 'caption' / 'export'                             |
+| subject_id           | TEXT FK | → subjects.id, nullable                                      |
+| study_id             | TEXT FK | → caption_studies.id, nullable (caption jobs)                |
+| status               | TEXT    | 'running' / 'succeeded' / 'failed' / 'cancelled' / 'interrupted' / 'paused' |
+| total_items          | INTEGER | Nullable. NULL initially; incremented as pages are discovered |
+| completed_items      | INTEGER | Successfully processed                                       |
+| failed_items         | INTEGER | Moved to DLQ or max retries                                  |
+| trace_id             | TEXT    | UUID grouping all messages from one triggering event, nullable |
+| pagination_exhausted | INTEGER | 0 or 1. Set when no more pages will be discovered            |
+| started_at           | TEXT    | ISO 8601                                                     |
+| finished_at          | TEXT    | ISO 8601, nullable                                           |
+| created_at           | TEXT    | ISO 8601                                                     |
+| updated_at           | TEXT    | ISO 8601, nullable                                           |
 
 Read-only audit log. Actual queue state lives in NATS JetStream.
+
+**Indexes**: `status`, `trace_id`.
 
 ### job_messages
 

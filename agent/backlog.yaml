@@ -78,7 +78,7 @@ stories:
   - id: S-004
     title: "Pipeline worker framework: consumers, retry, DLQ, rate limiting, SSE"
     priority: 80
-    status: todo
+    status: uat
     complexity: high
     requires: [S-002, S-003]
     acceptance:
@@ -764,3 +764,22 @@ stories:
       These are dev-only dependencies (eslint plugins), not production runtime.
       Root cause: @typescript-eslint/* packages pinned to versions with known ReDoS via repeated wildcards.
       Fix requires major version bump which may be a breaking change for lint config.
+  - id: B-002
+    title: "Backend dev container crashes on startup: DATA_DIR resolves to unwritable root path"
+    priority: 60
+    status: todo
+    requires: []
+    acceptance:
+      - "Backend dev container starts successfully with make up-dev"
+      - "Data directory resolves to a writable path inside the dev container"
+      - "Setting DATA_DIR env var in docker-compose.dev.yml prevents the fatal startup error"
+    testing:
+      - "command: make up-dev && sleep 5 && docker compose -f docker-compose.yml -f docker-compose.dev.yml logs backend |
+        grep -v fatal"
+    notes: |
+      Root cause: In the dev Docker container running as uid 1000, os.UserHomeDir() returns
+      a path under /image-dataset-tool (root-owned), which the non-root user cannot create.
+      DATA_DIR env var is not set in docker-compose.dev.yml, so datadir.Resolve() falls through
+      to DefaultPath() which uses the home dir. Fix: set DATA_DIR=/build/data (or similar
+      writable path) in docker-compose.dev.yml backend service environment.
+      Found by QA runtime error sweep during S-004.

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-004: Pipeline worker framework: consumers, retry, DLQ, rate limiting, SSE
+- `pipeline.Consumer` base type: pull-based NATS workers with ACK/NAK/DLQ routing, exponential backoff, InProgress keepalive, per-provider rate limiting, and disk-full auto-pause
+- `JobTracker` for atomic DB counter operations and job completion detection (`completed + failed = total` with pagination-exhausted gate)
+- `ShutdownCoordinator` for graceful SIGTERM handling: stop consumers → drain in-flight → close NATS → close SQLite (30s timeout)
+- SSE bridge (`ChannelEventSink` + `ConsumerStatsEmitter`), trace ID propagation, and stale job detection on startup
+
 ### S-003: Embedded NATS JetStream: in-process server, streams, persistence
 - Embedded NATS server runs in-process (no TCP port) with JetStream file-backed persistence at `$DATA_DIR/nats/`
 - MEDIA stream with 5 subjects (fetch, process, caption, export, dlq) and durable pull consumers; WorkQueuePolicy with DiscardOld at 1GB

@@ -150,6 +150,42 @@ CREATE TABLE IF NOT EXISTS secrets (
 );
 `,
 	},
+	{
+		version: 2,
+		name:    "add_pipeline_columns",
+		sql: `
+-- Recreate job_runs to allow NULL total_items (PRD: starts NULL, incremented as pages discovered).
+CREATE TABLE job_runs_new (
+	id TEXT PRIMARY KEY,
+	type TEXT NOT NULL,
+	subject_id TEXT REFERENCES subjects(id) ON DELETE CASCADE,
+	study_id TEXT REFERENCES caption_studies(id) ON DELETE CASCADE,
+	status TEXT NOT NULL,
+	total_items INTEGER,
+	completed_items INTEGER NOT NULL DEFAULT 0,
+	failed_items INTEGER NOT NULL DEFAULT 0,
+	trace_id TEXT,
+	pagination_exhausted INTEGER NOT NULL DEFAULT 0,
+	started_at TEXT NOT NULL,
+	finished_at TEXT,
+	created_at TEXT NOT NULL,
+	updated_at TEXT
+);
+
+INSERT INTO job_runs_new (id, type, subject_id, study_id, status, total_items,
+	completed_items, failed_items, started_at, finished_at, created_at)
+SELECT id, type, subject_id, study_id, status,
+	CASE WHEN total_items = 0 THEN NULL ELSE total_items END,
+	completed_items, failed_items, started_at, finished_at, created_at
+FROM job_runs;
+
+DROP TABLE job_runs;
+ALTER TABLE job_runs_new RENAME TO job_runs;
+
+CREATE INDEX IF NOT EXISTS idx_job_runs_status ON job_runs(status);
+CREATE INDEX IF NOT EXISTS idx_job_runs_trace_id ON job_runs(trace_id);
+`,
+	},
 }
 
 // Migrate applies all pending migrations to the database.
