@@ -8,4 +8,19 @@ defaults:
   review_feedback_field: "review_feedback"
   requires_field: "requires"
 
-stories: []
+stories:
+  - id: S-000
+    title: "Architecture Planning"
+    priority: 100
+    status: done
+    requires: []
+    acceptance:
+      - "docs/ contains architecture.md, database.md, and api.md outlining architectural approach for the project"
+      - "CLAUDE.md is updated so future iterations are aware of the new docs if they need to reference them"
+      - "architecture.md should cover general architecture for the frontend and backend"
+      - "database.md should outline a complete DB schema"
+      - "api.md should cover general approach to the API design. NOTE: /internal/api/design is the source-of-truth for the
+        API layout, so don't be overly specific about each endpoint/payload/response in api.md"
+    testing:
+      - "command: (n/a) file presence and structure only"
+      - "review the changes thoroughly and iterate as necessary"

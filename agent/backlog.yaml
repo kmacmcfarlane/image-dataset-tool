@@ -9,17 +9,743 @@ defaults:
   requires_field: "requires"
 
 stories:
-  - id: S-000
-    title: "Architecture Planning"
-    priority: 100
+  - id: S-001
+    title: "Repo skeleton: Go module, Goa, Vue, SQLite, Docker Compose"
+    priority: 90
     status: todo
+    complexity: high
     requires: []
     acceptance:
-      - "docs/ contains architecture.md, database.md, and api.md outlining architectural approach for the project"
-      - "CLAUDE.md is updated so future iterations are aware of the new docs if they need to reference them"
-      - "architecture.md should cover general architecture for the frontend and backend"
-      - "database.md should outline a complete DB schema"
-      - "api.md should cover general approach to the API design. NOTE: /internal/api/design is the source-of-truth for the API layout, so don't be overly specific about each endpoint/payload/response in api.md"
+      - "BE: cd backend && make build produces binary; starts on :8080; GET /health returns 200"
+      - "BE: cd backend && make gen runs Goa codegen without errors"
+      - "FE: cd frontend && npm ci && npm run build produces production bundle"
+      - "OPS: make up starts both containers; frontend at :3000, backend at :8080/health"
+      - "OPS: make up-dev starts dev stack with hot reload (air + Vite HMR)"
+      - "OPS: Dockerfile.claude-sandbox installs Go toolchain, gopls, typescript-language-server"
+      - "BE: make test-backend and FE: npm run test both pass with placeholder tests"
     testing:
-      - "command: (n/a) file presence and structure only"
-      - "review the changes thoroughly and iterate as necessary"
+      - "Verify make up and make up-dev work in claude-sandbox container"
+      - "Verify Dockerfile.claude-sandbox builds successfully with Go + Node tooling"
+    notes: |
+      Foundation story. Template is already scaffolded but needs Go module init,
+      Goa DSL setup, SQLite dependency, and Dockerfile.claude-sandbox creation.
+      Key files: backend/go.mod, backend/Makefile, Makefile, docker-compose.yml,
+      Dockerfile.claude-sandbox, .claude-sandbox.yaml
+
+  - id: S-002
+    title: "Data dir bootstrap, crypto helpers, manifest read/write"
+    priority: 85
+    status: todo
+    complexity: medium
+    requires: [S-001]
+    acceptance:
+      - "BE: On startup, creates $DATA_DIR/{projects,exports,tmp,nats} if missing"
+      - "BE: Defaults to ~/image-dataset-tool when $DATA_DIR unset"
+      - "BE: Reads encryption key from $DATA_DIR/secret.key; fails with clear error if missing"
+      - "BE: Fails with clear error if secret.key permissions are not 0600"
+      - "BE: AES-256-GCM encrypt/decrypt round-trip test passes with test-scoped key"
+      - "BE: Write project manifest.json, read back, assert fields match docs/files.md"
+      - "BE: Write sample .json, read back, assert all fields including nested captions"
+      - "BE: Manifest writes use write-to-temp-then-rename (atomic) to prevent corrupt JSON"
+      - "BE: SQLite created at $DATA_DIR/db.sqlite; WAL mode, FK ON, 5s busy timeout"
+      - "BE: All tables from docs/database.md created via migration with ON DELETE CASCADE"
+    testing:
+      - "Test atomic write: simulate crash between temp write and rename"
+      - "Test key permission check: create key with 0644, verify startup fails"
+      - "Test sentinel decrypt on startup for wrong-key detection"
+
+  - id: S-003
+    title: "Embedded NATS JetStream: in-process server, streams, persistence"
+    priority: 85
+    status: todo
+    complexity: medium
+    requires: [S-001]
+    acceptance:
+      - "BE: Embedded NATS server starts in-process (no network port)"
+      - "BE: JetStream enabled with file-backed storage at $DATA_DIR/nats/"
+      - "BE: Stream created with subjects: media.fetch.>, media.process, media.caption, media.export, media.dlq"
+      - "BE: Durable pull consumers for each subject with MaxAckPending from config"
+      - "BE: AckWait configurable per consumer (default values per PRD §5.2)"
+      - "BE: MaxBytes stream limit configurable (default 1GB, DiscardOld policy)"
+      - "BE: Integration test: publish → consume → ACK → message removed"
+      - "BE: Integration test: NAK with delay → redelivered after delay"
+      - "BE: Integration test: max deliveries exceeded → routed to media.dlq"
+      - "BE: NATS data survives backend restart"
+    testing:
+      - "Test stream persistence: stop server, restart, verify pending messages remain"
+      - "Test MaxBytes limit: publish until limit, verify DiscardOld behavior"
+
+  - id: S-004
+    title: "Pipeline worker framework: consumers, retry, DLQ, rate limiting, SSE"
+    priority: 80
+    status: todo
+    complexity: high
+    requires: [S-002, S-003]
+    acceptance:
+      - "BE: Base consumer type: pull from NATS, invoke handler, ACK on success, NAK with backoff on error, DLQ after max
+        retries"
+      - "BE: Workers send msg.InProgress() for long operations to prevent AckWait redelivery"
+      - "BE: Per-provider rate.Limiter: rpm=10 in config throttles to ~10 req/60s"
+      - "BE: DB counter increment succeeds before ACK; if DB fails, NAK the message"
+      - "BE: Job completion: completed_items + failed_items = total_items triggers succeeded status"
+      - "BE: Job with NULL total_items: incremented as pages discovered; complete when counters match and pagination exhausted"
+      - "BE: trace_id generated on first-mover events, propagated to all child events"
+      - "BE: SSE bridge emits consumer.stats every 2s; client test verifies receipt"
+      - "BE: Structured slog per message: job_id, trace_id, subject, duration_ms, attempt, status"
+      - "BE: Graceful shutdown: SIGTERM stops consumers, in-flight ACK/NAK, drain within 30s"
+      - "BE: Disk full (ENOSPC) NAKs with error code; N consecutive disk errors auto-pause job"
+      - "BE: Stale running jobs: on startup, cross-check NATS; mark interrupted if no pending messages"
+    testing:
+      - "Test graceful shutdown sequence: SIGTERM during active processing"
+      - "Test disk full handling with mock filesystem"
+      - "Test trace_id propagation across pipeline stages"
+      - "Test stale job detection on restart"
+
+  - id: S-005
+    title: "Filesystem-as-truth reconciler"
+    priority: 75
+    status: todo
+    complexity: medium
+    requires: [S-002]
+    acceptance:
+      - "BE: Reconciler runs on every startup, not just when DB is empty"
+      - "BE: Adds DB rows for manifests on disk missing from DB"
+      - "BE: Removes DB rows for entries whose manifests no longer exist"
+      - "BE: Updates DB rows where manifest content differs (manifest wins)"
+      - "BE: Handles malformed manifest JSON: logs warning, skips, does not delete file"
+      - "BE: Idempotent: running twice produces identical DB state"
+      - "BE: Captions in sample .json imported into captions table with correct study_id"
+      - "BE: Reconciler completes before NATS consumers start (gated startup)"
+    testing:
+      - "Test with manually modified manifests: verify DB syncs"
+      - "Test with corrupt JSON manifest: verify skip + warning"
+      - "Test reconciler + NATS startup ordering"
+
+  - id: S-006
+    title: "API server skeleton: Goa design, slog, SSE, media serving, Swagger"
+    priority: 80
+    status: todo
+    complexity: medium
+    requires: [S-002, S-004]
+    acceptance:
+      - "BE: Goa design DSL defines health, docs, media, and SSE services"
+      - "BE: GET /health returns subsystem status (SQLite, NATS, $DATA_DIR, key)"
+      - "BE: GET /docs serves Swagger UI with generated OpenAPI spec"
+      - "BE: GET /v1/media/{sample_id} serves raw image with correct Content-Type; 404 for unknown"
+      - "BE: GET /v1/media/{sample_id}/thumb serves JPEG thumbnail; regenerates if missing"
+      - "BE: GET /api/sse returns SSE stream with Last-Event-ID reconnection support"
+      - "BE: SSE replays missed events from in-memory ring buffer on reconnect"
+      - "BE: Structured JSON logging via slog; full request/response only at LOG_LEVEL=debug"
+      - "BE: Error middleware returns ErrorWithCode JSON for all errors"
+      - "BE: CORS configured for frontend dev origin (localhost:3000)"
+    testing:
+      - "Test SSE reconnection with Last-Event-ID"
+      - "Test thumbnail regeneration when thumb file is missing"
+      - "Test health endpoint reports failing subsystems correctly"
+
+  - id: S-007
+    title: "Frontend shell: Vue Router, SSE composable, layout, theming"
+    priority: 75
+    status: todo
+    complexity: medium
+    requires: [S-001]
+    acceptance:
+      - "FE: Vue 3 app with all routes from PRD §9 registered (placeholder views)"
+      - "FE: SSE composable: connects, reconnects with Last-Event-ID, exposes reactive data"
+      - "FE: Hybrid layout: narrow icon sidebar, breadcrumb bar, resizable right panel, status bar"
+      - "FE: Status bar shows connection status (SSE connected/disconnected)"
+      - "FE: Dismissable error banner at top for API errors"
+      - "FE: Toast notification system with configurable level threshold (default: warning, persisted in localStorage)"
+      - "FE: API client module in src/api/ with typed fetch wrapper; Vite proxy for /api/* and /v1/*"
+      - "FE: npm run lint and npx vitest run pass"
+    testing:
+      - "Test SSE composable reconnection behavior"
+      - "Test toast threshold persistence in localStorage"
+      - "Verify layout renders correctly at various viewport sizes"
+
+  - id: S-008
+    title: "Setup wizard: first-run flow"
+    priority: 60
+    status: todo
+    complexity: medium
+    requires: [S-006, S-007]
+    acceptance:
+      - "FE: On first launch (empty DB), redirects to /setup"
+      - "FE: Step 1 — data directory: shows $DATA_DIR, validates writable"
+      - "FE: Step 2 — encryption key: Generate button if missing (32-byte random, mode 0600); shows 'Key found' if exists"
+      - "FE: Step 3 — provider setup: optional API key input + provider dropdown; Skip button"
+      - "FE: Step 4 — complete: creates subdirectories, initializes DB, redirects to /"
+      - "FE: Setup wizard not shown on subsequent launches"
+      - "E2E: Walk through setup wizard on fresh $DATA_DIR"
+    testing:
+      - "Test with missing key file: verify generate button works"
+      - "Test with existing key: verify skip to next step"
+      - "Test idempotency: setup wizard completes, restart, verify not shown again"
+  - id: S-009
+    title: "CRUD projects: API + manifests + frontend"
+    priority: 70
+    status: todo
+    complexity: medium
+    requires: [S-006, S-007]
+    acceptance:
+      - "BE: POST /v1/projects creates project; writes manifest + dir; returns 201"
+      - "BE: GET /v1/projects lists all projects"
+      - "BE: GET /v1/projects/{id} returns project with subject count"
+      - "BE: PUT /v1/projects/{id} updates name/description; renames dir if slug changes"
+      - "BE: DELETE /v1/projects/{id} soft delete; hard_delete=true removes dir"
+      - "BE: Slug auto-generated (lowercase, hyphens, max 64 chars, no spaces); immutable after create; 409 on duplicate"
+      - "BE: Manifest written first (atomic rename), then DB insert (write ordering per §11.1)"
+      - "FE: Project list at /; create dialog; edit/delete context menu"
+      - "E2E: Create → read → update (with rename) → delete round trip"
+    testing:
+      - "Test slug generation edge cases: unicode, very long names, special chars"
+      - "Test directory rename on slug change"
+      - "Test cascade delete of subjects when project deleted"
+
+  - id: S-010
+    title: "CRUD subjects within a project"
+    priority: 65
+    status: todo
+    complexity: medium
+    requires: [S-009]
+    acceptance:
+      - "BE: POST /v1/projects/{pid}/subjects creates subject; writes manifest + samples/ dir"
+      - "BE: GET /v1/projects/{pid}/subjects lists subjects with sample counts"
+      - "BE: GET /v1/projects/{pid}/subjects/{sid} returns detail with linked accounts + sample stats"
+      - "BE: PUT /v1/projects/{pid}/subjects/{sid} updates name; renames dir if slug changes"
+      - "BE: DELETE same soft/hard pattern as projects"
+      - "BE: Slug rules same as projects (max 64, filesystem-safe)"
+      - "FE: Subject list at /projects/:id; cards with sample count badges"
+      - "E2E: Full CRUD with rename"
+    testing:
+      - "Test sample count aggregation (pending/kept/rejected)"
+      - "Test cascade delete: samples, edits, captions all removed"
+
+  - id: S-011
+    title: "Account management: CRUD social media accounts"
+    priority: 65
+    status: todo
+    complexity: medium
+    requires: [S-006, S-007]
+    acceptance:
+      - "BE: POST /v1/accounts creates account (platform, handle); unique (platform, handle)"
+      - "BE: GET /v1/accounts lists all; never returns cookies"
+      - "BE: GET /v1/accounts/{id} returns detail with linked subjects"
+      - "BE: PUT /v1/accounts/{id}/cookies updates cookies; encrypts with AES-256-GCM"
+      - "BE: DELETE /v1/accounts/{id} removes account + all subject_accounts links"
+      - "BE: Cookies never in API responses, logs, or error messages"
+      - "FE: /accounts view with list, add dialog (platform + handle + cookie textarea), delete"
+      - "E2E: CRUD + encrypt/decrypt round trip"
+    testing:
+      - "Test cookie encryption: verify ciphertext differs from plaintext"
+      - "Test cookie redaction in logs and error responses"
+
+  - id: S-012
+    title: "Link accounts to subjects (many-to-many)"
+    priority: 60
+    status: todo
+    complexity: low
+    requires: [S-010, S-011]
+    acceptance:
+      - "BE: POST /v1/subjects/{sid}/accounts links existing account by account_id"
+      - "BE: GET /v1/subjects/{sid}/accounts lists linked accounts"
+      - "BE: DELETE /v1/subjects/{sid}/accounts/{aid} unlinks (join row only)"
+      - "FE: Subject detail has 'Link account' picker showing existing accounts; option to navigate to /accounts"
+      - "E2E: Link, list, unlink round trip"
+    testing:
+      - "Test linking same account to multiple subjects"
+      - "Test unlinking doesn't delete the account itself"
+  - id: S-013
+    title: "Research spike: IG client approach evaluation"
+    priority: 75
+    status: todo
+    complexity: high
+    requires: [S-004]
+    acceptance:
+      - "DOC: Recommendation doc at docs/ig-client-spike.md"
+      - "DOC: Evaluates: instaloader subprocess, Go HTTP client, Node sidecar, GraphQL scraping"
+      - "DOC: Each assessed on: auth flow, media types, rate limits, maintenance status, Go integration"
+      - "DOC: 2FA support matrix: TOTP, SMS, email per approach"
+      - "DOC: Proof-of-concept: fetch 5+ posts from a public profile using recommended approach"
+      - "DOC: States which downstream stories are unblocked"
+    testing:
+      - "Proof-of-concept code runs in claude-sandbox container"
+      - "Use web search subagents to explore the current state of each approach thoroughly"
+    notes: |
+      Research spike. Agent runs autonomously with web search subagents.
+      User reviews recommendation via UAT flow. Dependent stories gate
+      on requires_reviewed.
+
+  - id: S-014
+    title: "IGClient interface + implementation"
+    priority: 65
+    status: todo
+    complexity: high
+    requires: [S-004]
+    requires_reviewed: [S-013]
+    acceptance:
+      - "BE: IGClient interface in internal/service/ with Login(), ScanPosts(), FetchMedia()"
+      - "BE: Login() takes individual params (not cookie map)"
+      - "BE: ScanPosts() paginates internally, invokes batch callback with []Post"
+      - "BE: FetchMedia() returns io.Reader + MediaMeta"
+      - "BE: Session reuse: valid session persisted encrypted in subject_accounts.cookies_blob"
+      - "BE: Non-image media types (video, audio, etc.) skipped"
+      - "BE: Unit tests with stubbed HTTP layer"
+    testing:
+      - "Test ScanPosts pagination with mock paginated responses"
+      - "Test media type filtering: verify video/audio skipped"
+      - "Test session persistence encrypt/decrypt cycle"
+
+  - id: S-015
+    title: "Media pull job: fetch → NATS pipeline"
+    priority: 60
+    status: todo
+    complexity: high
+    requires: [S-014]
+    requires_reviewed: [S-013]
+    acceptance:
+      - "BE: POST /v1/subjects/{sid}/pull triggers pull; creates job_runs row"
+      - "BE: Each post publishes one message per image slide to media.fetch.instagram"
+      - "BE: total_items starts NULL, incremented per page discovered"
+      - "BE: Fetch worker downloads to $DATA_DIR/tmp/<job-id>/; publishes to media.process on success"
+      - "BE: Idempotent: skips (source_post_id, slide_index) that already exist"
+      - "BE: Force-refresh option re-downloads existing samples"
+      - "BE: Rate limit (429): NAK with backoff; global pacer backs off all IG messages"
+      - "BE: SSE: job.state + job.progress events emitted"
+      - "BE: Job messages: warning on rate limit hit, error on auth failure, info on page discovered"
+      - "FE: Pull button on subject view; job appears in /jobs with live progress"
+      - "E2E: Trigger pull with mocked IG client, verify samples appear"
+    testing:
+      - "Test idempotency: pull twice, verify no duplicate samples"
+      - "Test force-refresh: verify file replaced"
+      - "Test rate limit backoff: verify NAK delay and global pacer"
+
+  - id: S-016
+    title: "Sample writer: post-processing, dedup, thumbnails"
+    priority: 60
+    status: todo
+    complexity: medium
+    requires: [S-004]
+    requires_reviewed: [S-013]
+    acceptance:
+      - "BE: media.process consumer reads image from tmp, computes sha256 + pHash"
+      - "BE: Dedup: sha256/pHash match flags is_duplicate=true, sets duplicate_of array"
+      - "BE: Duplicates kept on disk (not discarded); user decides in review"
+      - "BE: Moves file to final path; generates JPEG thumbnail (configurable max dim, default 768px)"
+      - "BE: Writes sample .json manifest per docs/files.md; atomic rename"
+      - "BE: Inserts sample row with status=pending; INSERT OR IGNORE for redelivery idempotency"
+      - "BE: Per-subject mutex for duplicate detection serialization"
+      - "BE: Tmp dir cleaned up when all job items processed"
+      - "BE: Emits sample.new SSE event on sample creation"
+      - "BE: Skips files exceeding max_file_size_mb (default 50MB); logs warning"
+      - "BE: Skips unsupported formats (accepts: jpeg, png, webp, heic)"
+      - "E2E: Process test image through pipeline; verify manifest, DB, thumbnail, final path"
+    testing:
+      - "Test dedup race: two workers processing same subject concurrently"
+      - "Test duplicate_of array: verify references correct sample IDs"
+      - "Test thumbnail regeneration if size config changes"
+      - "Test file size and format filtering"
+  - id: S-017
+    title: "Streaming grid view: connect-then-fetch, virtual scroll, lazy thumbnails"
+    priority: 60
+    status: todo
+    complexity: high
+    requires: [S-010, S-006]
+    acceptance:
+      - "BE: GET /v1/subjects/{sid}/samples returns full metadata array (no pagination)"
+      - "BE: SSE emits sample.new and sample.updated events"
+      - "FE: Connect-then-fetch: SSE first, fetch metadata, merge by ID (idempotent)"
+      - "FE: Virtual scroll with lazy thumbnail loading (intersection observer)"
+      - "FE: Status toggles (pending/kept/rejected) client-side; default pending"
+      - "FE: Duplicate toggle: off by default; badge shows matched sample IDs"
+      - "FE: New samples from active ingest appear in real-time"
+      - "FE: Grid handles 10k+ samples without degradation"
+      - "E2E: Connect SSE, trigger ingest of test samples, verify real-time appearance"
+    testing:
+      - "Test connect-then-fetch: verify no missed events during handoff"
+      - "Test virtual scroll performance with 10k+ items"
+      - "Test client-side filtering with status + duplicate toggles"
+
+  - id: S-018
+    title: "Keep/reject + multi-select + bulk actions"
+    priority: 55
+    status: todo
+    complexity: medium
+    requires: [S-017]
+    acceptance:
+      - "BE: PUT /v1/samples/{id}/status updates status + manifest"
+      - "BE: PUT /v1/samples/bulk-status atomic batch update"
+      - "FE: K=keep, R=reject on selected samples"
+      - "FE: Single selection: auto-advance to next sample after keep/reject"
+      - "FE: Multi selection: auto-advance to sample after last in selection"
+      - "FE: Shift+click range select; Ctrl+A select all; Ctrl+Shift+A deselect"
+      - "FE: Visual indicators: green (kept), red (rejected), neutral (pending)"
+      - "FE: Status is reversible between any states"
+      - "E2E: Bulk status update; verify auto-advance behavior"
+    testing:
+      - "Test auto-advance logic with single vs multi selection"
+      - "Test bulk update atomicity"
+
+  - id: S-019
+    title: "Edit-ops persistence infrastructure"
+    priority: 55
+    status: todo
+    complexity: medium
+    requires: [S-017]
+    acceptance:
+      - "BE: PUT /v1/samples/{id}/edits creates/updates edits row + manifest (atomic rename)"
+      - "BE: Concurrent manifest access: file lock prevents lost updates from UI + pipeline"
+      - "BE: auto_actions_json records which helpers were applied"
+      - "BE: Edits are idempotent; clearing all edits resets to original"
+      - "BE: Reconciler can rebuild edits table from manifests"
+      - "FE: Auto-save on edit (debounced)"
+      - "FE: Reset button clears all edits and saves immediately"
+      - "E2E: Apply edits, verify manifest + DB; verify reconciler rebuilds"
+    testing:
+      - "Test concurrent write: UI edit + pipeline caption write to same manifest"
+      - "Test file lock contention behavior"
+
+  - id: S-020
+    title: "Rotate: 90-degree buttons + free-angle slider"
+    priority: 50
+    status: todo
+    complexity: medium
+    requires: [S-019]
+    acceptance:
+      - "FE: 90-degree left/right buttons in sample detail view AND lightbox"
+      - "FE: Free-angle slider (0-359) in detail view AND lightbox"
+      - "FE: Preview via CSS transform; raw bytes untouched"
+      - "FE: Auto-save + reset button (via edit-ops infrastructure)"
+      - "FE: Persists across page reloads"
+      - "E2E: Rotate, reload, verify persisted"
+    testing:
+      - "Test free-angle + 90-degree compose correctly"
+
+  - id: S-021
+    title: "Manual rectangle crop"
+    priority: 50
+    status: todo
+    complexity: medium
+    requires: [S-019]
+    acceptance:
+      - "FE: Drag-to-crop overlay in detail view AND lightbox; resizable, movable"
+      - "FE: Crop box stored as percentages of original dimensions"
+      - "FE: Preview via CSS clip-path or canvas; raw bytes untouched"
+      - "FE: Auto-save + reset button"
+      - "FE: Crop and rotation compose correctly (rotate first, then crop)"
+      - "E2E: Set crop, reload, verify persisted; verify reset clears"
+    testing:
+      - "Test crop + rotation composition in preview"
+      - "Test crop box percentage calculation with various aspect ratios"
+
+  - id: S-022
+    title: "Research spike: auto-correction helpers"
+    priority: 30
+    status: todo
+    complexity: high
+    requires: [S-017]
+    acceptance:
+      - "DOC: Recommendation doc at docs/auto-correction-spike.md"
+      - "DOC: Evaluates: solid-color border removal, gradient border detection, photo-of-artwork correction (rotate/skew/crop)"
+      - "DOC: Each assessed on: accuracy, Go library availability, CPU cost, integration complexity"
+      - "DOC: Proof-of-concept on 5+ test images per category"
+      - "DOC: Recommends which helpers to build first vs defer"
+      - "DOC: Identifies dependencies and supply chain risk"
+    testing:
+      - "Use web search subagents to explore current Go image processing libraries"
+      - "Proof-of-concept code runs and produces sample outputs"
+    notes: |
+      Research spike. Runs autonomously. User reviews via UAT flow.
+
+  - id: S-023
+    title: "Caption side panel: view/edit captions, navigation"
+    priority: 50
+    status: todo
+    complexity: medium
+    requires: [S-017]
+    acceptance:
+      - "FE: Sample detail shows side panel with captions grouped by study"
+      - "FE: Study name, provider, model as header per group"
+      - "FE: Resizable textarea for caption editing; Ctrl+Z undo within session"
+      - "FE: Manual edits save as 'manual' pseudo-study; original study text preserved"
+      - "FE: Next/prev + arrow keys navigate; if multi-selected, cycles selection; else cycles filter"
+      - "FE: 'No captions yet' state with link to studies view"
+      - "FE: Lightbox includes caption panel; same navigation logic"
+      - "E2E: Edit caption; verify manual study created; original preserved"
+    testing:
+      - "Test manual pseudo-study creation on first inline edit"
+      - "Test navigation with single vs multi selection"
+
+  - id: S-024
+    title: "Lightbox: full-size preview with keyboard shortcuts"
+    priority: 50
+    status: todo
+    complexity: medium
+    requires: [S-017, S-018]
+    acceptance:
+      - "FE: Enter key opens lightbox for focused sample"
+      - "FE: Arrow keys navigate; K/R keep/reject work inside lightbox"
+      - "FE: If multi-selected in grid, lightbox cycles through selection"
+      - "FE: Escape closes lightbox"
+      - "FE: Caption panel visible in lightbox"
+      - "FE: Rotate/crop controls available in lightbox (after S-020/S-021)"
+      - "E2E: Open lightbox, navigate, keep/reject, verify state synced with grid"
+    testing:
+      - "Test lightbox state sync with grid selection"
+      - "Test keyboard shortcuts inside lightbox"
+  - id: S-025
+    title: "Research spike: vision model captioning evaluation"
+    priority: 60
+    status: todo
+    complexity: high
+    requires: [S-006]
+    acceptance:
+      - "DOC: Recommendation doc at docs/captioning-spike.md"
+      - "DOC: Tests 3+ providers (Claude, OpenAI, one local OAI-compatible) on 30-image gold set"
+      - "DOC: Criteria: accuracy, detail, consistency, natural language quality, cost, latency"
+      - "DOC: Recommended default prompt template for natural language SD captions"
+      - "DOC: Recommends starting model + prompt for Claude"
+      - "DOC: Documents provider-specific quirks (format reqs, token limits, rate limits)"
+    testing:
+      - "Use web search subagents to research current provider capabilities and pricing"
+      - "Gold set images selected to cover diverse subject types"
+    notes: |
+      Research spike. Runs autonomously with web search. User reviews
+      recommendation doc via UAT flow. Dependent stories gate on
+      requires_reviewed.
+
+  - id: S-026
+    title: "Captioner interface + Claude provider"
+    priority: 55
+    status: todo
+    complexity: medium
+    requires: [S-004]
+    requires_reviewed: [S-025]
+    acceptance:
+      - "BE: Captioner interface: Caption(ctx, imageReader, prompt, opts) → (CaptionResult, error)"
+      - "BE: CaptionResult contains: text, provider, model, tokens_used"
+      - "BE: Claude implementation using Anthropic API; model configurable"
+      - "BE: Image sent as base64 vision message; supports JPEG and PNG"
+      - "BE: Provider rate limiting via rate.Limiter (RPM/TPM from config)"
+      - "BE: Errors include structured codes (rate_limited, invalid_image, provider_error, timeout)"
+      - "BE: API key from secrets table (encrypted); clear error if missing"
+      - "BE: Unit tests with mocked HTTP client"
+    testing:
+      - "Test rate limiter throttling behavior"
+      - "Test error code mapping for various API failure modes"
+
+  - id: S-027
+    title: "OAI-compatible local provider"
+    priority: 45
+    status: todo
+    complexity: medium
+    requires: [S-026]
+    requires_reviewed: [S-025]
+    acceptance:
+      - "BE: Captioner implementation for OAI-compatible endpoints"
+      - "BE: Endpoint URL configurable per provider in config.yaml"
+      - "BE: rpm=0 means no rate limiting (unconstrained local)"
+      - "BE: Timeout configurable per provider"
+      - "BE: Handles provider-specific response format differences"
+      - "BE: Unit tests with mocked HTTP endpoint"
+    testing:
+      - "Test with mock OAI-compatible endpoint"
+      - "Document manual test procedure against running llama.cpp server"
+
+  - id: S-028
+    title: "Caption studies: CRUD UI + presets"
+    priority: 55
+    status: todo
+    complexity: medium
+    requires: [S-009]
+    requires_reviewed: [S-025]
+    acceptance:
+      - "BE: POST /v1/projects/{pid}/studies creates study (name, provider, model, prompt_template, params_json)"
+      - "BE: GET /v1/projects/{pid}/studies lists with caption counts"
+      - "BE: GET /v1/projects/{pid}/studies/{id} detail"
+      - "BE: PUT updates; slug regenerated if name changes"
+      - "BE: DELETE removes study; associated captions preserved (orphaned)"
+      - "BE: Auto-created 'manual' pseudo-study per project; cannot be deleted"
+      - "FE: /studies view with list, create/edit dialog, delete confirmation"
+      - "E2E: CRUD round trip; verify slug uniqueness"
+    testing:
+      - "Test manual pseudo-study auto-creation"
+      - "Test orphaned captions after study delete"
+
+  - id: S-029
+    title: "Batch captioning job via NATS pipeline"
+    priority: 50
+    status: todo
+    complexity: high
+    requires: [S-026, S-028, S-004]
+    acceptance:
+      - "BE: POST /v1/subjects/{sid}/caption triggers job; params: study_id, sample_filter"
+      - "BE: Publishes one message per eligible sample to media.caption; provider in message payload"
+      - "BE: Workers dispatch to correct Captioner implementation based on provider field"
+      - "BE: Workers send msg.InProgress() for long LLM calls"
+      - "BE: Writes caption to captions table + sample .json manifest keyed by study slug"
+      - "BE: Idempotent: skips samples with existing caption for study (unless force=true)"
+      - "BE: SSE: job.state + job.progress events"
+      - "BE: Job messages: warning/error/info levels per §11.8"
+      - "FE: 'Run captioning' button; study selector; job appears in /jobs"
+      - "E2E: Create study, trigger captioning on seeded samples (mocked provider)"
+    testing:
+      - "Test provider dispatch: verify correct Captioner called per study config"
+      - "Test InProgress() prevents AckWait timeout redelivery"
+      - "Test idempotency: caption twice, verify no duplicate"
+  - id: S-030
+    title: "DatasetWriter interface + edit-ops materializer"
+    priority: 45
+    status: todo
+    complexity: medium
+    requires: [S-019]
+    acceptance:
+      - "BE: DatasetWriter interface: Write(ctx, opts) → (ExportResult, error)"
+      - "BE: Edit materializer: reads raw image + edits, applies rotation then crop"
+      - "BE: Free-angle rotation support (not just 90-degree)"
+      - "BE: No edits = raw bytes copied as-is (no re-encoding)"
+      - "BE: Unit test: known rotation + crop → verify output dimensions"
+    testing:
+      - "Test edit composition: rotation + crop on test image"
+      - "Test no-edit passthrough: verify byte-identical copy"
+
+  - id: S-031
+    title: "kohya-ss dataset writer"
+    priority: 45
+    status: todo
+    complexity: low
+    requires: [S-030]
+    acceptance:
+      - "BE: Implements DatasetWriter for kohya-ss format"
+      - "BE: Output: <sample-id>.jpg + <sample-id>.txt pairs"
+      - "BE: Caption .txt from selected study; omit if missing"
+      - "BE: Images are edit-materialized (rotation/crop applied)"
+      - "BE: Integration test: export samples with edits + captions; verify output structure"
+    testing:
+      - "Test with missing captions: verify .txt omitted"
+      - "Test with edit-materialized images: verify dimensions match expected"
+
+  - id: S-032
+    title: "Export dialog: subject selector, study selector, validation"
+    priority: 45
+    status: todo
+    complexity: medium
+    requires: [S-031, S-028]
+    acceptance:
+      - "FE: /export view with multi-step dialog"
+      - "FE: Step 1: project/subject multi-select tree with checkboxes"
+      - "FE: Step 2: study selector (filtered to studies on selected subjects)"
+      - "FE: Validation: count samples missing captions; offer to launch captioning job"
+      - "FE: Step 3: destination — server path (default $DATA_DIR/exports/...) or zip download"
+      - "FE: Summary before export: sample count, study, format, destination"
+      - "FE: Dialog remembers last values in localStorage"
+      - "E2E: Walk through dialog with seeded data; verify validation catches missing captions"
+    testing:
+      - "Test validation with partial caption coverage"
+      - "Test localStorage persistence of dialog state"
+
+  - id: S-033
+    title: "Server-side export via NATS pipeline + progress + ETA"
+    priority: 40
+    status: todo
+    complexity: medium
+    requires: [S-031, S-004]
+    acceptance:
+      - "BE: POST /v1/exports triggers export; params: subject_ids, study_slug, format, destination"
+      - "BE: Publishes to media.export; each sample is a message"
+      - "BE: SSE progress with total/completed/failed counts and ETA"
+      - "BE: ETA based on average duration of completed items"
+      - "BE: job_runs updated with final path and sample count"
+      - "E2E: Trigger export; verify files at expected path"
+    testing:
+      - "Test ETA calculation accuracy"
+      - "Test export with mixed edit/no-edit samples"
+
+  - id: S-034
+    title: "Zip stream download via Goa native streaming"
+    priority: 35
+    status: todo
+    complexity: medium
+    requires: [S-031]
+    acceptance:
+      - "BE: Goa native streaming endpoint for zip download; appears in Swagger/OpenAPI spec"
+      - "BE: Zip built on-the-fly; not written to disk first"
+      - "BE: 1000+ images stream without OOM"
+      - "FE: Download button triggers request; browser saves via standard dialog"
+      - "E2E: Trigger zip export; verify zip contents match expected files"
+    testing:
+      - "Test streaming with large sample count (mock 1000+ samples)"
+      - "Verify Goa OpenAPI spec includes the streaming endpoint"
+  - id: S-035
+    title: "Job history view: timing, progress, per-item messages"
+    priority: 50
+    status: todo
+    complexity: medium
+    requires: [S-004, S-007]
+    acceptance:
+      - "BE: GET /v1/jobs paginated list; filters: type, status"
+      - "BE: GET /v1/jobs/{id} detail with timing, outcome, item counts"
+      - "BE: GET /v1/jobs/{id}/messages paginated; filter by level (default: warning)"
+      - "BE: Each message has timestamp, level, sample_ref, account_handle, message text"
+      - "FE: /jobs view with job list; expandable to show messages in context panel"
+      - "FE: Level filter toggle (error/warning/info); default warning"
+      - "FE: Real-time SSE updates for running jobs (progress bar, error count)"
+      - "E2E: Trigger job; verify appears in history with correct status"
+    testing:
+      - "Test message level filtering"
+      - "Test real-time progress updates via SSE"
+
+  - id: S-036
+    title: "Queue admin view: stats, message peek, retry, purge"
+    priority: 40
+    status: todo
+    complexity: medium
+    requires: [S-003, S-007]
+    acceptance:
+      - "BE: GET /v1/queues/stats returns per-consumer stats"
+      - "BE: GET /v1/queues/{subject}/messages peek without consuming; paginated"
+      - "BE: POST /v1/queues/{subject}/retry redeliver specific message"
+      - "BE: DELETE /v1/queues/{subject}/messages/{id} delete specific message"
+      - "BE: POST /v1/queues/{subject}/purge purge all messages"
+      - "FE: /queues view with stats table, message list, retry/purge buttons"
+      - "E2E: Seed DLQ messages; verify peek, retry, purge"
+    testing:
+      - "Test retry: verify message redelivered to consumer"
+      - "Test purge confirmation flow"
+
+  - id: S-037
+    title: "Structured JSON logs with configurable level"
+    priority: 45
+    status: todo
+    complexity: low
+    requires: [S-006]
+    acceptance:
+      - "BE: All logging via slog with JSON handler to stdout"
+      - "BE: HTTP requests logged: method, path, status, duration_ms, request_id"
+      - "BE: NATS handlers logged: job_id, trace_id, subject, sample_id, provider, duration_ms, attempt, status"
+      - "BE: Full request/response body only at LOG_LEVEL=debug"
+      - "BE: Secrets never in logs"
+      - "BE: Log level configurable via config.yaml (default: info)"
+      - "BE: Integration test: trigger operations, capture stdout, verify JSON structure"
+    testing:
+      - "Test secret redaction in logs"
+      - "Test LOG_LEVEL=debug includes request bodies"
+
+  - id: S-038
+    title: "Settings UI: secrets, providers, config display"
+    priority: 40
+    status: todo
+    complexity: medium
+    requires: [S-007]
+    acceptance:
+      - "FE: /settings view"
+      - "FE: Secrets management: list keys (not values), add/update (encrypted on save), delete"
+      - "FE: Provider config: display from config.yaml (read-only); test connection button"
+      - "FE: All config.yaml values displayed read-only, grouped by section"
+      - "FE: Data dir path display (read-only)"
+      - "FE: Encryption key status (found/missing/wrong permissions)"
+      - "FE: Toast notification level threshold setting (persisted in localStorage)"
+      - "E2E: Settings page loads; secrets CRUD works"
+    testing:
+      - "Test connection test button for configured providers"
+      - "Test toast threshold setting persists across page reloads"
