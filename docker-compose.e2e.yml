@@ -1,0 +1,40 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      - PORT=8080
+      - DATA_DIR=/app/data
+    volumes:
+      - e2e_data:/app/data
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend:/app
+      - e2e_node_modules:/app/node_modules
+    depends_on:
+      - backend
+    environment:
+      - VITE_BACKEND_URL=http://backend:8080
+
+  e2e:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.e2e
+    depends_on:
+      - frontend
+      - backend
+    environment:
+      - BASE_URL=http://frontend:3000
+    volumes:
+      - ./frontend/e2e:/app/e2e
+      - e2e_results:/app/test-results
+    command: >
+      sh -c "npx playwright test --workers=1 ${SPEC:+e2e/$SPEC}"
+
+volumes:
+  e2e_data:
+  e2e_results:
+  e2e_node_modules:
