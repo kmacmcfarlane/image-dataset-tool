@@ -57,7 +57,7 @@ stories:
   - id: S-003
     title: "Embedded NATS JetStream: in-process server, streams, persistence"
     priority: 85
-    status: in_progress
+    status: uat
     complexity: medium
     requires: [S-001]
     acceptance:
