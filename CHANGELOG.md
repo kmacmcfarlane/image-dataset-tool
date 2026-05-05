@@ -5,14 +5,10 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 ### S-007: Frontend shell: Vue Router, SSE composable, layout, theming
-- Vue Router with all 10 PRD section 9 routes registered (lazy-loaded placeholder views)
-- SSE composable (`useSSE`): connects to `/v1/events`, reconnects with Last-Event-ID and exponential backoff with jitter, exposes reactive connection status
-- Hybrid layout: narrow icon sidebar (collapsed by default, expandable), breadcrumb bar, resizable right panel, status bar with SSE connection indicator
-- Dismissable error banner at top for API errors, wired to `onApiError` event bus
-- Toast notification store with configurable level threshold (default: warning), persisted in localStorage, auto-dismiss after 5s
-- API client module (`src/api/`) with typed fetch wrapper, error normalization to stable `ApiError` shape, and `onApiError` subscription mechanism
-- Vite proxy configured for `/api/*` and `/v1/*` to backend
-- CSS variables for light/dark theming defined in App.vue (adapts via `prefers-color-scheme`)
+- All 10 PRD §9 routes registered with lazy loading; hybrid layout (icon sidebar, breadcrumb bar, resizable right panel, status bar)
+- SSE composable with exponential backoff reconnection and Last-Event-ID support; typed API client in `src/api/` with error normalization event bus
+- Toast notification store with configurable level threshold (default: warning, persisted in localStorage); dismissable error banner for API errors
+- CSS variables for light/dark theming via `prefers-color-scheme`; Vite proxy for `/api/*` and `/v1/*`
 
 ### S-005: Filesystem-as-truth reconciler
 - Startup reconciler scans `$DATA_DIR/projects/` manifests and syncs SQLite: adds missing, removes stale, updates divergent rows (manifest always wins)
