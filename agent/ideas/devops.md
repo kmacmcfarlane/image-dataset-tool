@@ -49,3 +49,9 @@ Add `npm audit --audit-level=high` as a required check in the CI pipeline so hig
 * priority: medium
 * source: qa
 The `make logs-snapshot` smoke test always fails at crypto key load because no `secret.key` is provisioned in the fresh dev volume. A `make setup-dev-data` target or auto-generate-key-on-first-boot behavior would allow the backend to fully start during smoke tests.
+
+### Add .e2e/ artifact generation to E2E compose
+* status: needs_approval
+* priority: medium
+* source: qa
+The QA agent expects `.e2e/summary.txt` and `.e2e/sweep.txt` for machine-readable results. The current E2E compose stack does not produce these files. Adding a post-run script to write these artifacts would enable automated verdict generation without manual log parsing.

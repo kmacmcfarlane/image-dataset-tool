@@ -13,6 +13,8 @@ import (
 	healthsvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/health/server"
 	genqueues "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/queues"
 	queuessvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/queues/server"
+	gensettings "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/settings"
+	settingssvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/settings/server"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/crypto"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/datadir"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/natsutil"
@@ -37,7 +39,7 @@ func main() {
 
 	// 2b. Load encryption key — fail fast with clear error on missing/bad perms.
 	keyPath := datadir.SecretKeyPath(dir)
-	_, err = crypto.LoadKey(keyPath)
+	encKey, err := crypto.LoadKey(keyPath)
 	if err != nil {
 		logrus.Fatalf("Failed to load encryption key: %v", err)
 	}
@@ -74,13 +76,23 @@ func main() {
 		port = "8080"
 	}
 
+	// Load application config (optional; errors are non-fatal).
+	cfg, err := api.LoadConfig()
+	if err != nil {
+		logrus.WithError(err).Warn("Failed to load config.yaml — using empty config")
+		cfg = map[string]any{}
+	}
+
 	// Create service implementations
 	healthSvc := api.NewHealthService()
 	queuesSvc := api.NewQueuesService(natsSrv.JS())
+	secretsStore := store.NewSecretsStore(db, encKey)
+	settingsSvc := api.NewSettingsService(secretsStore, dir, cfg)
 
 	// Create endpoints
 	healthEndpoints := health.NewEndpoints(healthSvc)
 	queuesEndpoints := genqueues.NewEndpoints(queuesSvc)
+	settingsEndpoints := gensettings.NewEndpoints(settingsSvc)
 
 	// Create HTTP mux
 	mux := goahttp.NewMuxer()
@@ -92,6 +104,10 @@ func main() {
 	// Create and mount queues server
 	queuesServer := queuessvr.New(queuesEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
 	queuessvr.Mount(mux, queuesServer)
+
+	// Create and mount settings server
+	settingsServer := settingssvr.New(settingsEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
+	settingssvr.Mount(mux, settingsServer)
 
 	// Create HTTP server
 	addr := fmt.Sprintf(":%s", port)

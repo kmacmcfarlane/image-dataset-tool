@@ -734,7 +734,7 @@ stories:
   - id: S-038
     title: "Settings UI: secrets, providers, config display"
     priority: 40
-    status: todo
+    status: uat
     complexity: medium
     requires: [S-007]
     acceptance:

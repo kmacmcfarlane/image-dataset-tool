@@ -60,6 +60,8 @@ config.yaml
 
 # E2E test artifacts
 .e2e/
+frontend/playwright-report/
+frontend/test-results/
 
 # Debug mode output (agent decision logs from ralph-auto-debug)
 .ralph-debug/

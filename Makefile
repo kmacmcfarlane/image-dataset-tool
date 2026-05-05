@@ -1,4 +1,4 @@
-.PHONY: claude claude-resume ralph ralph-resume ralph-auto ralph-auto-resume ralph-auto-debug ralph-debug capture-runtime-context up down logs up-dev down-dev logs-dev test-frontend test-frontend-watch test-backend test-backend-watch logs-snapshot
+.PHONY: claude claude-resume ralph ralph-resume ralph-auto ralph-auto-resume ralph-auto-debug ralph-debug capture-runtime-context up down logs up-dev down-dev logs-dev test-frontend test-frontend-watch test-backend test-backend-watch logs-snapshot test-e2e test-e2e-serial test-e2e-live test-e2e-live-run test-e2e-live-down
 
 COMPOSE_DEV = docker compose -f docker-compose.yml -f docker-compose.dev.yml
 
@@ -73,3 +73,29 @@ test-backend-watch:
 
 logs-snapshot:
 	$(COMPOSE_DEV) up -d --build && sleep 5 && $(COMPOSE_DEV) logs --no-color 2>&1 | head -200 && $(COMPOSE_DEV) down -v
+
+COMPOSE_E2E = docker compose -f docker-compose.e2e.yml
+
+# E2E tests via Docker (full isolated stack; Playwright runs in a container with all system deps).
+# Run all: make test-e2e
+# Run specific spec(s): make test-e2e-serial SPEC=settings.spec.ts
+test-e2e:
+	$(COMPOSE_E2E) up --build --abort-on-container-exit --exit-code-from e2e
+	$(COMPOSE_E2E) down -v
+
+test-e2e-serial:
+	SPEC=$(SPEC) $(COMPOSE_E2E) up --build --abort-on-container-exit --exit-code-from e2e
+	$(COMPOSE_E2E) down -v
+
+# Live E2E development: hot-reload stack + interactive Playwright runner.
+# Start: make test-e2e-live
+# Run spec: make test-e2e-live-run SPEC=settings.spec.ts
+# Stop: make test-e2e-live-down
+test-e2e-live:
+	$(COMPOSE_DEV) up -d --build
+
+test-e2e-live-run:
+	$(COMPOSE_DEV) exec frontend npx playwright test --workers=1 $(if $(SPEC),e2e/$(SPEC),)
+
+test-e2e-live-down:
+	$(COMPOSE_DEV) down -v

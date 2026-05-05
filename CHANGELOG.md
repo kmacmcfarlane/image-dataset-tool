@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-038: Settings UI: secrets, providers, config display
+- New `/settings` view with secrets CRUD (AES-256-GCM encrypted at rest, values never returned in list API), encryption key status, data dir display, provider test buttons, and full `config.yaml` accordion
+- Five new API endpoints under `/v1/settings/` with Goa DSL design; `SecretsStore` in store layer
+- Playwright E2E infrastructure added: `docker-compose.e2e.yml`, `make test-e2e` / `make test-e2e-serial` targets
+
 ### B-003: Backend auto-provisions secret.key on first start
 - `crypto.GenerateKey` writes a fresh 32-byte AES-256 key with mode 0600
 - `datadir.EnsureSecretKey` auto-generates the key if absent; no-ops when key already exists
