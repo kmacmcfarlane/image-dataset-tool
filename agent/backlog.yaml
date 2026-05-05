@@ -698,7 +698,7 @@ stories:
   - id: S-036
     title: "Queue admin view: stats, message peek, retry, purge"
     priority: 40
-    status: review
+    status: uat
     complexity: medium
     requires: [S-003, S-007]
     acceptance:
@@ -783,3 +783,21 @@ stories:
       to DefaultPath() which uses the home dir. Fix: set DATA_DIR=/build/data (or similar
       writable path) in docker-compose.dev.yml backend service environment.
       Found by QA runtime error sweep during S-004.
+  - id: B-003
+    title: "Backend fails to start in dev Docker stack due to missing secret.key auto-provisioning"
+    priority: 60
+    status: todo
+    requires: []
+    acceptance:
+      - "Backend starts successfully with make up-dev on a fresh checkout without manual key provisioning"
+      - "A development key is auto-generated on first start if no secret.key exists (or a setup script/compose entrypoint
+        provisions it)"
+    testing:
+      - "command: make up-dev && sleep 10 && docker compose -f docker-compose.yml -f docker-compose.dev.yml logs backend |
+        grep -v fatal"
+    notes: |
+      Root cause: datadir.Bootstrap() creates the data directory but does not auto-generate
+      a secret.key file. The dev compose volume backend_dev_data is ephemeral and starts empty,
+      so every fresh make up-dev requires manual key provisioning before the backend will start.
+      Found by QA runtime error sweep during S-036.
+      Log evidence: level=fatal msg="Failed to load encryption key: secret.key file not found: /build/data/secret.key"
