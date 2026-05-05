@@ -25,3 +25,9 @@ Example:
 * priority: high
 * source: qa
 E2E infrastructure (`frontend/e2e/`, Playwright config, `make test-e2e` target) does not exist yet. Required for all future story QA cycles per the QA agent's standard operating procedure. Should be scaffolded as a dedicated story.
+
+### Secret key generation helper (`make gen-key`)
+* status: needs_approval
+* priority: medium
+* source: developer
+No tooling exists to create a valid `secret.key` for local dev. A `make gen-key` target (or small Go CLI under `scripts/`) that writes 32 random bytes with `chmod 0600` to `$DATA_DIR/secret.key` would remove a common first-run stumbling block.
