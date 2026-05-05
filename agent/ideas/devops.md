@@ -19,3 +19,9 @@ Example:
 ```
 
 ## Ideas
+
+### Add `make test-e2e` target and Playwright E2E infrastructure
+* status: needs_approval
+* priority: high
+* source: qa
+E2E infrastructure (`frontend/e2e/`, Playwright config, `make test-e2e` target) does not exist yet. Required for all future story QA cycles per the QA agent's standard operating procedure. Should be scaffolded as a dedicated story.

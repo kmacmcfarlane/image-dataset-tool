@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS subjects (
 	slug TEXT NOT NULL,
 	name TEXT NOT NULL,
 	created_at TEXT NOT NULL,
-	updated_at TEXT NOT NULL
+	updated_at TEXT NOT NULL,
+	UNIQUE(project_id, slug)
 );
 
 CREATE TABLE IF NOT EXISTS accounts (
@@ -102,7 +103,8 @@ CREATE TABLE IF NOT EXISTS caption_studies (
 	prompt_template TEXT NOT NULL,
 	params_json TEXT NOT NULL DEFAULT '{}',
 	created_at TEXT NOT NULL,
-	updated_at TEXT NOT NULL
+	updated_at TEXT NOT NULL,
+	UNIQUE(project_id, slug)
 );
 
 CREATE TABLE IF NOT EXISTS captions (

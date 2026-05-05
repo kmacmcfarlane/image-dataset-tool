@@ -204,6 +204,40 @@ var _ = Describe("Store", func() {
 			Expect(err).To(HaveOccurred())
 		})
 
+		It("enforces UNIQUE constraint on subjects (project_id, slug)", func() {
+			err := store.Migrate(db)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = db.Exec(`INSERT INTO projects (id, slug, name, created_at, updated_at)
+				VALUES ('p1', 'proj', 'Project', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = db.Exec(`INSERT INTO subjects (id, project_id, slug, name, created_at, updated_at)
+				VALUES ('s1', 'p1', 'same-slug', 'Subject 1', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = db.Exec(`INSERT INTO subjects (id, project_id, slug, name, created_at, updated_at)
+				VALUES ('s2', 'p1', 'same-slug', 'Subject 2', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("enforces UNIQUE constraint on caption_studies (project_id, slug)", func() {
+			err := store.Migrate(db)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = db.Exec(`INSERT INTO projects (id, slug, name, created_at, updated_at)
+				VALUES ('p1', 'proj', 'Project', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = db.Exec(`INSERT INTO caption_studies (id, project_id, name, slug, provider, model, prompt_template, created_at, updated_at)
+				VALUES ('cs1', 'p1', 'Study 1', 'same-slug', 'anthropic', 'claude', 'template', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = db.Exec(`INSERT INTO caption_studies (id, project_id, name, slug, provider, model, prompt_template, created_at, updated_at)
+				VALUES ('cs2', 'p1', 'Study 2', 'same-slug', 'anthropic', 'claude', 'template', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`)
+			Expect(err).To(HaveOccurred())
+		})
+
 		It("enforces UNIQUE constraint on samples (subject_id, source_post_id, slide_index)", func() {
 			err := store.Migrate(db)
 			Expect(err).NotTo(HaveOccurred())
