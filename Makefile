@@ -1,4 +1,4 @@
-.PHONY: claude claude-resume ralph ralph-resume ralph-auto ralph-auto-resume ralph-auto-debug ralph-debug capture-runtime-context up down logs up-dev down-dev logs-dev test-frontend-watch test-backend-watch
+.PHONY: claude claude-resume ralph ralph-resume ralph-auto ralph-auto-resume ralph-auto-debug ralph-debug capture-runtime-context up down logs up-dev down-dev logs-dev test-frontend test-frontend-watch test-backend test-backend-watch logs-snapshot
 
 COMPOSE_DEV = docker compose -f docker-compose.yml -f docker-compose.dev.yml
 
@@ -70,3 +70,6 @@ test-backend:
 
 test-backend-watch:
 	$(COMPOSE_DEV) exec backend ginkgo watch -r --cover --race ./internal/... ./cmd/...
+
+logs-snapshot:
+	$(COMPOSE_DEV) up -d --build && sleep 5 && $(COMPOSE_DEV) logs --no-color 2>&1 | head -200 && $(COMPOSE_DEV) down -v
