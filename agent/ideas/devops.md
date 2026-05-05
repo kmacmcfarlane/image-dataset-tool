@@ -32,11 +32,11 @@ E2E infrastructure (`frontend/e2e/`, Playwright config, `make test-e2e` target) 
 * source: developer
 No tooling exists to create a valid `secret.key` for local dev. A `make gen-key` target (or small Go CLI under `scripts/`) that writes 32 random bytes with `chmod 0600` to `$DATA_DIR/secret.key` would remove a common first-run stumbling block.
 
-### Add DATA_DIR env var to docker-compose.dev.yml
+### Dev container smoke test in CI
 * status: needs_approval
-* priority: high
-* source: qa
-Set `DATA_DIR=/build/data` (or similar writable path) in the backend service environment in `docker-compose.dev.yml` to fix the pre-existing startup crash. Currently `os.UserHomeDir()` returns an unwritable root path in the dev container, causing a fatal error on every `make up-dev`.
+* priority: medium
+* source: developer
+Add a lightweight `make up-dev` health-check target that starts the dev stack, polls the backend health endpoint, and tears down. Would catch startup crashes like B-002 before they reach QA.
 
 ### Automated npm audit gate in CI
 * status: needs_approval
