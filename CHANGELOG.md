@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-036: Queue admin view: stats, message peek, retry, purge
+- BE: Goa service design for queue admin with 5 endpoints: GET stats, GET peek (paginated), POST retry, DELETE message, POST purge
+- BE: QueuesService implementation wrapping JetStream direct message access — stats from consumer info, peek via stream GetMsg, retry republishes to original subject (from X-DLQ-Original-Subject header), delete/purge via stream API
+- FE: QueuesView with stats data table (per-consumer pending/ack/redelivered counts), message peek panel with pagination, retry/delete per-message buttons, purge with confirmation modal
+- FE: Pinia queues store and typed API client module (`/api/queues.ts`)
+- Full backend integration tests (9 specs) using real embedded NATS; frontend store unit tests (6 specs)
+
 ### S-007: Frontend shell: Vue Router, SSE composable, layout, theming
 - All 10 PRD §9 routes registered with lazy loading; hybrid layout (icon sidebar, breadcrumb bar, resizable right panel, status bar)
 - SSE composable with exponential backoff reconnection and Last-Event-ID support; typed API client in `src/api/` with error normalization event bus
