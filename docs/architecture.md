@@ -95,9 +95,18 @@ frontend/
 
 ### 3.4 Navigation structure
 
-| Route | Purpose |
-|-------|---------|
-| TBD   | ...     |
+| Route | View | Use case |
+|-------|------|----------|
+| `/` | Project list | — |
+| `/projects/:id` | Subject list + account links | UC-1 |
+| `/projects/:id/subjects/:sid/samples` | Review grid (paginated) | UC-3 |
+| `/projects/:id/subjects/:sid/samples/:sampleId` | Sample detail + caption panel | UC-5 |
+| `/jobs` | Job list + real-time progress | UC-2, UC-4 |
+| `/studies` | Caption study management | UC-4 |
+| `/export` | Export dialog | UC-6 |
+| `/queues` | Queue admin — stats, peek, retry | — |
+| `/accounts` | Social media account management | UC-1 |
+| `/settings` | Config, secrets, providers | — |
 
 ## 4) Docker runtime
 
@@ -114,10 +123,97 @@ frontend/
 - Source directories mounted into containers for live editing.
 - Watch test targets available: `make test-frontend-watch`, `make test-backend-watch`.
 
-## 5) Data flow summary
+## 5) Event-driven pipeline (NATS JetStream)
+
+### 5.1 Overview
+
+The backend embeds a NATS server in-process (`nats.InProcessConn`, no network port).
+JetStream provides persistent, file-backed message storage in `$DATA_DIR/nats/`.
+
+Each image flows through the pipeline as independent messages on typed subjects.
+Pipeline stages are fully decoupled; each has its own consumer with independent
+backpressure and rate limiting.
+
+### 5.2 Subject hierarchy
+
+```
+media.fetch.{provider}     →  source-specific fetch workers
+media.process              →  dedup, hash, thumbnail generation
+media.caption   →  per-provider caption workers
+media.export               →  export materializer
+media.dlq                  →  dead letter (max retries exceeded)
+```
+
+### 5.3 Consumer model
+
+Each subject has a durable pull consumer. Workers pull messages and ACK/NAK:
+- **ACK** → message removed; completion handler publishes to the next pipeline stage
+- **NAK with delay** → retry with exponential backoff
+- **Max deliveries exceeded** → message routed to `media.dlq`
+
+Backpressure via `MaxAckPending` per consumer — limits in-flight messages per stage.
+
+### 5.4 Worker pools & rate limiting
+
+| Consumer                 | Default concurrency | Rate limiting                        |
+| ------------------------ | ------------------- | ------------------------------------ |
+| `media.fetch.instagram`  | 1                   | `time.Ticker` pacer + backoff on 429 |
+| `media.process`          | GOMAXPROCS          | CPU-bound, no external limit         |
+| `media.caption.*`        | 4                   | Per-provider `rate.Limiter` (RPM/TPM)|
+| `media.export`           | 2                   | I/O-bound, no external limit         |
+
+Rate limiting lives on the **worker** (HTTP client layer), not the queue. When an IG
+rate limit is hit, the worker NAKs with a delay and the global pacer backs off —
+affecting all IG fetch messages regardless of which job triggered them.
+
+### 5.5 Ingest pipeline flow
+
+```
+media.fetch.instagram worker
+  → downloads image to $DATA_DIR/tmp/<job-id>/<filename>
+  → on ACK: publishes to media.process
+
+media.process worker
+  → computes sha256 + pHash
+  → dedup check against subject's existing samples
+  → if unique: move to final path, generate thumbnail, write manifest, insert SQLite row
+  → if duplicate: mark is_duplicate in SQLite, discard from tmp
+  → temp dir cleaned up when all items in the job are processed
+```
+
+### 5.6 SSE event stream
+
+Pipeline events are pushed to the frontend via SSE (Goa native SSE, `GET /api/sse`):
+
+| Event             | Payload                                     | Frequency       |
+| ----------------- | ------------------------------------------- | --------------- |
+| `job.state`       | id, type, status, error?                    | On state change |
+| `job.progress`    | id, current, total, pct                     | Per-message ACK |
+| `consumer.stats`  | subject, pending, ack_pending, redelivered  | Every 2s        |
+| `provider.rate`   | provider, rpm_used, rpm_limit               | Every 5s        |
+
+### 5.7 Structured logging
+
+Each message handler emits a structured log (`slog`): `job_id`, `subject`,
+`sample_id`, `provider`, `duration_ms`, `attempt`, `status`, `error`.
+
+## 6) Data flow summary
 
 ```
 User ──▶ Browser ──▶ Frontend (Vue) ──▶ Backend API (Goa)
+                                             │
+                                     ┌───────┴────────┐
+                                     ▼                ▼
+                              Service Layer    NATS JetStream (embedded)
+                                     │          ├── media.fetch.* consumers
+                                     ▼          ├── media.process consumer
+                                   Store        ├── media.caption consumer
+                                     │          ├── media.export consumer
+                              ┌──────┴──────┐   └── media.dlq
+                              ▼              ▼
+                           SQLite      Filesystem
+                          (index)     (source of truth)
 ```
 
 All data flows through the backend. The frontend is a pure UI layer.
+NATS data is ephemeral pipeline state — filesystem and SQLite are the durable stores.
