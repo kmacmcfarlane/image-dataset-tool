@@ -28,7 +28,8 @@ Never claim completion unless acceptance criteria are met and tests pass.
 - Frontend (Vue + Vite + TS): /frontend
 - Backend (Go + Goa v3): /backend
 - Agent docs: /agent
-- Architecture docs: /docs (architecture.md, database.md, api.md)
+- Architecture docs: /docs (architecture.md, database.md, api.md, files.md, ui.md)
+  Agents must keep these docs up-to-date when architecture/data model/API/UI changes.
 - Scripts: /scripts
 - Changelog: /CHANGELOG.md
 - Subagent definitions: /.claude/agents/
