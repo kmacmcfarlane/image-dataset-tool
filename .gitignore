@@ -37,6 +37,7 @@ backend/coverprofile.out
 data/
 
 # Environment files
+.envrc
 .env
 .env.*
 !.env.example
