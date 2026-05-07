@@ -272,15 +272,18 @@ def _requires_satisfied(story: CommentedMap, all_stories: list[CommentedMap]) ->
 
     satisfied_statuses = frozenset({"done", "uat", "uat_feedback", "closed"})
 
-    def _check(story_id: str, visited: set[str]) -> bool:
-        if story_id in visited:
+    def _check(story_id: str, path: set[str]) -> bool:
+        if story_id in path:
             return False  # Circular dependency
-        visited.add(story_id)
+        path.add(story_id)
         if status_map.get(story_id) not in satisfied_statuses:
+            path.discard(story_id)
             return False
         for dep_id in requires_map.get(story_id, []):
-            if not _check(dep_id, visited):
+            if not _check(dep_id, path):
+                path.discard(story_id)
                 return False
+        path.discard(story_id)
         return True
 
     for req_id in requires:
@@ -313,15 +316,18 @@ def _requires_reviewed_satisfied(story: CommentedMap, all_stories: list[Commente
 
     satisfied_statuses = frozenset({"done", "closed"})
 
-    def _check(story_id: str, visited: set[str]) -> bool:
-        if story_id in visited:
+    def _check(story_id: str, path: set[str]) -> bool:
+        if story_id in path:
             return False  # Circular dependency
-        visited.add(story_id)
+        path.add(story_id)
         if status_map.get(story_id) not in satisfied_statuses:
+            path.discard(story_id)
             return False
         for dep_id in requires_map.get(story_id, []):
-            if not _check(dep_id, visited):
+            if not _check(dep_id, path):
+                path.discard(story_id)
                 return False
+        path.discard(story_id)
         return True
 
     for req_id in requires_reviewed:

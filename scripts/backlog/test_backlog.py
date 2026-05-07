@@ -114,6 +114,15 @@ class TestRequiresSatisfied(unittest.TestCase):
         d2 = _make_story(id="S-002", status="in_progress")
         self.assertFalse(_requires_satisfied(story, [story, d1, d2]))
 
+    def test_diamond_dependency(self):
+        """Diamond: A requires B and C, both B and C require D.
+        D appears in two branches but is not circular."""
+        d = _make_story(id="S-001", status="done", requires=[])
+        b = _make_story(id="S-002", status="done", requires=["S-001"])
+        c = _make_story(id="S-003", status="done", requires=["S-001"])
+        a = _make_story(id="S-004", status="todo", requires=["S-002", "S-003"])
+        self.assertTrue(_requires_satisfied(a, [a, b, c, d]))
+
 
 class TestSelectHighestPriority(unittest.TestCase):
     """Tests for _select_highest_priority helper."""
