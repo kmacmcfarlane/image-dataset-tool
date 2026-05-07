@@ -60,7 +60,7 @@ Frontend never talks to providers. Frontend talks only to backend API.
 This project is part of the [kmac-claude-kit](https://github.com/kmacmcfarlane/kmac-claude-kit) ecosystem:
 - **claude-sandbox**: The Docker container this agent runs inside. See https://github.com/kmacmcfarlane/claude-sandbox
 - **claude-templates**: The template this project was scaffolded from. See https://github.com/kmacmcfarlane/claude-templates
-- **claude-skills**: Reusable skills (slash commands). See https://github.com/kmacmcfarlane/claude-skills
+- **claude-plugins**: Plugin marketplace with reusable skills (claude-kit plugin). See https://github.com/kmacmcfarlane/claude-plugins
 
 ## 7) Quick commands (keep accurate)
 
