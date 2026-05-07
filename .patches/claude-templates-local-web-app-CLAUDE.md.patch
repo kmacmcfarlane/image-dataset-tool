@@ -1,0 +1,5 @@
+--- Description ---
+In claude-templates/local-web-app/CLAUDE.md, replace:
+  - **claude-skills**: Reusable skills (slash commands). See https://github.com/kmacmcfarlane/claude-skills
+With:
+  - **claude-plugins**: Plugin marketplace with reusable skills (claude-kit plugin). See https://github.com/kmacmcfarlane/claude-plugins

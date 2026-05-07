@@ -260,21 +260,22 @@ stories:
     priority: 75
     status: todo
     complexity: high
-    requires: [S-004]
+    requires: []
+    ticket_mode: mixed
     acceptance:
       - "DOC: Recommendation doc at docs/ig-client-spike.md"
       - "DOC: Evaluates: instaloader subprocess, Go HTTP client, Node sidecar, GraphQL scraping"
       - "DOC: Each assessed on: auth flow, media types, rate limits, maintenance status, Go integration"
       - "DOC: 2FA support matrix: TOTP, SMS, email per approach"
-      - "DOC: Proof-of-concept: fetch 5+ posts from a public profile using recommended approach"
+      - "[INTERACTIVE] DOC: Proof-of-concept: fetch 5+ posts from a public profile using recommended approach"
       - "DOC: States which downstream stories are unblocked"
     testing:
       - "Proof-of-concept code runs in claude-sandbox container"
       - "Use web search subagents to explore the current state of each approach thoroughly"
     notes: |
-      Research spike. Agent runs autonomously with web search subagents.
-      User reviews recommendation via UAT flow. Dependent stories gate
-      on requires_reviewed.
+      Research spike with mixed ticket_mode. Autonomous phase: web search,
+      approach evaluation, recommendation doc. Interactive phase: PoC
+      execution requiring burner IG credentials over VPN.
 
   - id: S-014
     title: "IGClient interface + implementation"
@@ -443,7 +444,7 @@ stories:
     priority: 30
     status: todo
     complexity: high
-    requires: [S-017]
+    requires: []
     acceptance:
       - "DOC: Recommendation doc at docs/auto-correction-spike.md"
       - "DOC: Evaluates: solid-color border removal, gradient border detection, photo-of-artwork correction (rotate/skew/crop)"
@@ -498,21 +499,22 @@ stories:
     priority: 60
     status: todo
     complexity: high
-    requires: [S-006]
+    requires: []
+    ticket_mode: mixed
     acceptance:
       - "DOC: Recommendation doc at docs/captioning-spike.md"
-      - "DOC: Tests 3+ providers (Claude, OpenAI, one local OAI-compatible) on 30-image gold set"
       - "DOC: Criteria: accuracy, detail, consistency, natural language quality, cost, latency"
       - "DOC: Recommended default prompt template for natural language SD captions"
       - "DOC: Recommends starting model + prompt for Claude"
       - "DOC: Documents provider-specific quirks (format reqs, token limits, rate limits)"
+      - "[INTERACTIVE] DOC: Tests 3+ providers (Claude, OpenAI, one local OAI-compatible) on 30-image gold set"
     testing:
       - "Use web search subagents to research current provider capabilities and pricing"
       - "Gold set images selected to cover diverse subject types"
     notes: |
-      Research spike. Runs autonomously with web search. User reviews
-      recommendation doc via UAT flow. Dependent stories gate on
-      requires_reviewed.
+      Research spike with mixed ticket_mode. Autonomous phase: web search,
+      provider research, documentation. Interactive phase: gold set curation
+      and provider testing requiring API keys.
 
   - id: S-026
     title: "Captioner interface + Claude provider"

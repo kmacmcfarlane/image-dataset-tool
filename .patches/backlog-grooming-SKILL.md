@@ -104,14 +104,33 @@ If any stories warrant splitting:
 
 This is its own sub-phase — don't rush it. Good factoring here saves rework later.
 
-### Step 1.5: Interactive and spike-gated stories
+### Step 1.5: Ticket mode and mixed-mode stories
 
-For new stories that are research spikes:
-- Ask whether the spike requires interactive user participation (`interactive: true`).
-  Interactive spikes are skipped by Ralph autonomous mode.
-- Ask whether downstream stories should use `requires_reviewed` (blocks until spike
-  reaches `done`, not just `uat`). Use this when the spike produces a recommendation
-  that the user must review before implementation can begin.
+For new stories that are research spikes or have components requiring user participation:
+
+Ask about `ticket_mode` using `AskUserQuestion`:
+- **question**: "Does this story need user participation for any phase (credentials, hardware, judgment calls)?"
+- **options**:
+  1. Label: "Fully autonomous", Description: "Agent can complete all AC without user"
+  2. Label: "Mixed", Description: "Some AC autonomous, some need interactive session"
+  3. Label: "Fully interactive", Description: "Entire story needs real-time user participation"
+
+For **mixed** stories:
+- Identify which AC are autonomous vs interactive
+- Prefix interactive AC with `[INTERACTIVE]`
+- Set `ticket_mode: mixed` in the story YAML
+- Add notes explaining what the interactive phase requires (credentials, hardware, etc.)
+
+For **interactive** stories:
+- Set `ticket_mode: interactive`
+- These are skipped by Ralph autonomous mode entirely
+
+For **autonomous** stories (the default):
+- Omit `ticket_mode` field (absence = autonomous)
+
+Also ask whether downstream stories should use `requires_reviewed` (blocks until spike
+reaches `done`, not just `uat`). Use this when the spike produces a recommendation
+that the user must review before implementation can begin.
 
 **Do NOT move to Phase 2 until the user signals they're done** (e.g., "that's it", "nothing else", "let's see the plan"). The user has context that needs to be interviewed out of them — keep the conversation going.
 
@@ -140,13 +159,15 @@ Actions: `approve → archive`, `set review_feedback + status uat_feedback`, `sk
 
 **Section B — New stories related to work under review** (bugs found against UAT stories, follow-up tasks, rework items)
 
-| ID | Type | Title | Priority (level) | Requires | Complexity |
-|----|------|-------|------------------|----------|------------|
+| ID | Type | Title | Priority (level) | Requires | Complexity | Mode |
+|----|------|-------|------------------|----------|------------|------|
 
 **Section C — New standalone stories** (features, bugs, or tasks unrelated to current UAT work)
 
-| ID | Type | Title | Priority (level) | Requires | Complexity |
-|----|------|-------|------------------|----------|------------|
+| ID | Type | Title | Priority (level) | Requires | Complexity | Mode |
+|----|------|-------|------------------|----------|------------|------|
+
+The **Mode** column shows ticket_mode if not autonomous: `mixed` or `interactive`.
 
 After the tables, show:
 - **Next 5 in work order**: The stories that will be worked next after these changes take effect (considering queue priority from AGENT_FLOW.md: testing → review → in_progress → uat_feedback (status) → todo)
@@ -184,8 +205,10 @@ python3 scripts/backlog/backlog.py set <id> priority <value>
 New stories follow the format enforced by `backlog.py` and documented in the `/backlog-entry` skill. Key points:
 - `status: todo` always
 - `complexity` is required (low / medium / high)
+- `ticket_mode` only if `mixed` or `interactive` (omit for autonomous)
 - `testing` field: describe non-obvious testing considerations and edge cases for the QA agent — do NOT put boilerplate test commands here (the QA agent already knows to run unit and E2E tests)
 - `acceptance` criteria use layer prefixes: `FE:`, `BE:`, `E2E:`, `OPS:`, `DOC:`
+- Mixed-mode stories prefix interactive AC with `[INTERACTIVE]`
 
 ```bash
 cat <<'EOF' | python3 scripts/backlog/backlog.py add
@@ -235,3 +258,4 @@ Show a concise summary:
 - **The `complexity` field is required** for new entries. If complexity is unclear during discovery, flag it explicitly and discuss with the user — don't guess.
 - **IDs must be unique** across backlog.yaml and backlog_done.yaml — always use `backlog.py next-id`.
 - **Feedback stories get both `review_feedback` and `status: uat_feedback`** — write the feedback text to `review_feedback`, then set status to `uat_feedback`. The orchestrator picks up from there.
+- **`ticket_mode`** — only set for `mixed` or `interactive` stories. Omit for autonomous (the default).

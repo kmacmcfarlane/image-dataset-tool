@@ -146,35 +146,61 @@ approval** of a spike's output — not just the spike's completion.
 - Use case: research spikes produce recommendations that the user must evaluate
   before implementation stories can begin.
 
-#### Research spikes — preferred workflow
+#### Ticket modes (`ticket_mode`)
 
-Spikes follow an **autonomous research + user review** model:
+Stories have a `ticket_mode` that controls dispatch:
 
-1. **Autonomous phase**: the agent runs the spike autonomously (Ralph mode). It
-   performs web searches (via subagents), evaluates libraries, writes proof-of-concept
-   code, and produces a recommendation document in `docs/`. The spike should use
-   subagents with web search to explore the space thoroughly.
+- **`autonomous`** (default, field omitted): Runs fully via Ralph. Normal lifecycle.
+- **`interactive`**: Requires real-time user participation throughout. Ralph skips
+  entirely (`--non-interactive` flag).
+- **`mixed`**: Has autonomous and interactive phases. Ralph picks these up and
+  executes the autonomous portion only.
+
+##### Mixed-mode workflow
+
+1. Ralph claims the story normally (todo → in_progress).
+2. Fullstack engineer works all AC that do NOT have the `[INTERACTIVE]` prefix.
+3. Story proceeds to review normally (in_progress → review).
+4. Code reviewer validates: all non-interactive AC are complete and meet quality bar.
+5. After reviewer approval of autonomous AC:
+   - Orchestrator sets `status: blocked`
+   - Orchestrator sets `blocked_reason: "Autonomous phase complete. Interactive
+     session needed for: <list of [INTERACTIVE] AC>"`
+6. Story remains blocked until user starts an interactive session.
+7. In interactive session: user unblocks (status → in_progress), remaining
+   `[INTERACTIVE]` AC are completed, normal lifecycle resumes.
+
+##### AC convention for mixed stories
+
+Interactive acceptance criteria MUST be prefixed with `[INTERACTIVE]`:
+
+```yaml
+acceptance:
+  - "DOC: Recommendation doc at docs/spike-output.md"
+  - "DOC: Evaluates approaches on criteria X, Y, Z"
+  - "[INTERACTIVE] DOC: Proof-of-concept execution with user credentials"
+```
+
+The `[INTERACTIVE]` prefix is the machine-readable boundary. The fullstack
+engineer and reviewer use it to determine which AC belong to which phase.
+
+##### Research spikes
+
+Research spikes follow the **autonomous research + user review** model:
+
+1. **Autonomous phase**: the agent runs autonomously (Ralph mode). It performs web
+   searches (via subagents), evaluates libraries, and produces a recommendation
+   document in `docs/`.
 2. **Review phase**: the spike enters `uat` via the normal story lifecycle. The user
    reviews the recommendation document and either approves (`done`) or provides
    feedback (`uat_feedback`) for iteration.
 3. **Gate release**: downstream stories using `requires_reviewed` become eligible
    only after the user moves the spike to `done`.
 
-Spikes are **not** `interactive: true` by default. They run autonomously and produce
-artifacts for review. Only mark a spike `interactive: true` if it genuinely cannot
-proceed without real-time user input (e.g., the user must provide credentials that
-cannot be stored, or must physically operate hardware).
-
-#### Interactive stories (`interactive: true`)
-
-A story with `interactive: true` in its backlog entry must be worked in an
-interactive Claude session, not via autonomous Ralph. The orchestrator skips these
-stories in autonomous mode (`--non-interactive` flag). This is reserved for stories
-that require real-time user participation and cannot produce useful output
-autonomously.
-
-TODO: Upstream these workflow changes to claude-templates/local-web-app and the
-checkpoint-sampler project after story generation is complete.
+Spikes with `ticket_mode: mixed` run their autonomous research through the full
+review cycle, then block for the interactive PoC phase. Fully autonomous spikes
+(no `ticket_mode` or `ticket_mode: autonomous`) proceed through the entire
+lifecycle without blocking.
 
 ### 1.3 Review feedback
 

@@ -33,6 +33,7 @@ Parse `$ARGUMENTS` and determine:
 - **Draft acceptance criteria**: Specific, testable items with appropriate prefix (FE:, BE:, E2E:, OPS:, DOC:)
 - **Dependencies**: Does this depend on existing stories? Check with `backlog.py list-ids --source active`
 - **Batch detection**: If the description contains multiple distinct items, note this and plan to create multiple entries.
+- **Ticket mode**: Is this a research spike with interactive components? Consider `ticket_mode: mixed`.
 
 Present your analysis to the user via `AskUserQuestion`:
 - **question**: List numbered assumptions including entry type, layers, draft acceptance criteria, estimated complexity, and suggested priority range. Ask: "Are these assumptions correct?"
@@ -56,8 +57,19 @@ Based on the user's response, ask follow-up questions via `AskUserQuestion` unti
 6. **Dependencies** identified (list of IDs, or empty)
 7. **Notes** have enough context (key files, design decisions, root cause for bugs)
 8. **Testing commands** determined from acceptance criteria prefixes
+9. **Ticket mode** determined if applicable (see below)
 
 Focus each round on the biggest remaining gap. Most entries need 2-3 rounds.
+
+#### Ticket mode determination
+
+Ask about `ticket_mode` when the entry is a research spike or has components requiring user participation:
+
+- **`autonomous`** (default, field omitted): Fully automatable. Most stories.
+- **`interactive`**: Requires real-time user participation throughout. Rare.
+- **`mixed`**: Has both autonomous and interactive phases. Used for spikes needing credentials, hardware access, or user judgment for PoC execution.
+
+For `mixed` stories, prefix interactive AC with `[INTERACTIVE]` to mark the boundary.
 
 ### Step 4: Offer to Split Large Entries
 
@@ -90,9 +102,10 @@ Build the YAML using this format:
     status: todo
     complexity: {low|medium|high}
     requires: [{comma-separated IDs or empty}]
+    ticket_mode: {mixed|interactive}  # Only include if not autonomous
     acceptance:
       - "{PREFIX}: {criterion 1}"
-      - "{PREFIX}: {criterion 2}"
+      - "[INTERACTIVE] {PREFIX}: {criterion 2}"  # For mixed-mode interactive AC
     notes: |
       {Context paragraph.}
       Key files: {comma-separated file paths}.
@@ -135,6 +148,7 @@ Report:
 - Priority and complexity assigned
 - Number of acceptance criteria
 - Dependencies (if any)
+- Ticket mode (if not autonomous)
 - Validation result
 
 ## Important
@@ -145,68 +159,5 @@ Report:
 - The `complexity` field is required for new entries (used for model selection in AGENT_FLOW.md)
 - All writes go through `backlog.py add` — never edit YAML directly
 - For batch creation, assign sequential IDs and auto-link `requires` where there are logical dependencies
-
-## Examples
-
-### Single feature story
-
-User: `/backlog-entry Add dark mode toggle to the top nav`
-
-Result:
-```yaml
-  - id: S-083
-    title: "Dark mode toggle in top navigation bar"
-    priority: 25
-    status: todo
-    complexity: low
-    requires: []
-    acceptance:
-      - "FE: Dark mode toggle button in the top navigation bar"
-      - "FE: Clicking toggle switches between light and dark themes"
-      - "FE: Theme preference persists in localStorage"
-      - "FE: Unit tests for toggle behavior"
-    notes: |
-      Naive UI supports dark theme via NConfigProvider.
-      Key files: frontend/src/App.vue, frontend/src/composables/useTheme.ts (new).
-    testing:
-      - "command: cd frontend && npx vitest run"
-```
-
-### Batch creation from notes
-
-User: `/backlog-entry Add API endpoint for user preferences, then a frontend settings panel that uses it`
-
-Result (two linked entries):
-```yaml
-  - id: S-083
-    title: "User preferences API endpoint"
-    priority: 30
-    status: todo
-    complexity: medium
-    requires: []
-    acceptance:
-      - "BE: GET /api/preferences returns stored user preferences"
-      - "BE: PUT /api/preferences updates preferences with validation"
-      - "BE: Unit tests for preference service and store"
-    notes: |
-      New REST endpoint for persisting user preferences.
-      Key files: backend/internal/api/design/, backend/internal/service/, backend/internal/store/.
-    testing:
-      - "command: make test-backend"
-
-  - id: S-084
-    title: "Frontend settings panel using preferences API"
-    priority: 28
-    status: todo
-    complexity: medium
-    requires: [S-083]
-    acceptance:
-      - "FE: Settings panel accessible from the top navigation"
-      - "FE: Panel reads and writes preferences via the API"
-      - "FE: Unit tests for settings panel component"
-    notes: |
-      Frontend counterpart to S-083.
-      Key files: frontend/src/components/SettingsPanel.vue (new), frontend/src/api/.
-    testing:
-      - "command: cd frontend && npx vitest run"
-```
+- `ticket_mode` is only set for `interactive` or `mixed` stories — omit for autonomous (the default)
+- Mixed-mode stories MUST prefix interactive AC with `[INTERACTIVE]`

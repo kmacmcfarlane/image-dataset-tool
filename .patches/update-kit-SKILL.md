@@ -37,13 +37,11 @@ PROJECT_ROOT=$(git rev-parse --show-toplevel)
 PARENT=$(dirname "$PROJECT_ROOT")
 PROJECT_NAME=$(basename "$PROJECT_ROOT")
 TEMPLATES="$PARENT/claude-templates/local-web-app"
-# claude-plugins is the marketplace and source of truth for skills.
-# The legacy `claude-skills` repo is deprecated and must not be touched.
 SKILLS="$PARENT/claude-plugins/plugins/claude-kit/skills"
 KIT="$PARENT/claude-kit"
 ```
 
-Verify sibling repos exist. If any are missing, report which and continue with available repos (claude-kit is optional but recommended). If you find a `claude-skills` directory at `$PARENT/claude-skills`, **ignore it** — it is the deprecated standalone-skills repo, superseded by the claude-plugins marketplace.
+Verify sibling repos exist. If any are missing, report which and continue with available repos (claude-kit is optional but recommended).
 
 ### Step 0.2: Dynamic template diff (replaces hardcoded file list)
 
@@ -84,12 +82,13 @@ For each syncable path, classify:
 Run a recursive diff across these syncable directory trees:
 - `agent/` (excluding items in the exclude list above)
 - `.claude/agents/`
-- `.claude/skills/`
 - `.claude/settings.json`
 - `.mcp.json`
 - `CLAUDE.md`
 - `.gitignore`
 - `scripts/` (all scripts)
+
+Note: `.claude/skills/` is NOT synced to the template. Skills come from the claude-kit plugin (installed via marketplace), not from the template. Only sync skills to `claude-plugins`.
 
 For the `agent/ideas/` directory specifically: sync the **directory structure and stub headers** (the idea category files), but NOT the idea entries themselves. Compare only the first 3 lines of each ideas file.
 
@@ -141,17 +140,11 @@ Present the full scan results to the user, organized by repo:
 [=] agent/PROMPT_AUTO.md
 ...
 
-### Skills (in template)
-[A] .claude/skills/backlog-yaml/ (new skill — generic)
-[=] .claude/skills/playwright/
-...
-
 ## claude-plugins (claude-kit plugin → skills/)
 
 ### Skills
 [M] update-kit/SKILL.md (generic improvement — 2 lines changed)
 [A?] backlog-yaml/ (project-only, appears generic — recommend upstream)
-[A?] backlog-entry/ (project-only, appears generic — recommend upstream)
 [A?] comfyui-api/ (project-only, project-specific — skip)
 [=] playwright/
 ...
@@ -226,8 +219,7 @@ After each file is synced and verified, update the task status to `completed`.
 
 For `[A?]` skills classified as generic:
 1. Copy the entire skill directory to `$SKILLS/<name>/` (i.e. `claude-plugins/plugins/claude-kit/skills/<name>/` — the marketplace source of truth)
-2. Copy to `claude-templates/local-web-app/.claude/skills/<name>/` as well (so new projects get the skill)
-3. Run genericization verification on each file in the skill
+2. Run genericization verification on each file in the skill
 
 For `[M]` skills:
 1. Overwrite each changed file in the upstream skill directory
@@ -292,25 +284,25 @@ Show a concise summary organized by repo:
 ## Sync Summary
 
 ### claude-templates
-- Modified: 8 files
-- Added: 5 files
-- Removed: 1 file (IDEAS.md → replaced by ideas/ directory)
-- Skipped (project-specific): 3 files
+- Modified: N files
+- Added: N files
+- Removed: N files
+- Skipped (project-specific): N files
 
 ### claude-plugins (claude-kit plugin)
-- Modified: 1 skill (update-kit)
-- Added: 3 skills (backlog-yaml, backlog-entry, backlog-grooming)
-- Skipped (project-specific): 1 skill (comfyui-api)
+- Modified: N skills
+- Added: N skills
+- Skipped (project-specific): N skills
 
 ### claude-kit
-- README.md updated (agent pipeline, skills reference, tooling sections)
+- README.md updated (if applicable)
 
 ### Project
-- Updated: agent/claude-kit-repo-map.md (added 3 skills to sync list)
+- Updated: agent/claude-kit-repo-map.md (if new skills added)
 
 Remember to commit and push in:
   - /path/to/claude-templates
-  - /path/to/claude-plugins   ← marketplace; NOT the deprecated claude-skills repo
+  - /path/to/claude-plugins
   - /path/to/claude-kit (if README changed)
   - /path/to/project (if repo map changed)
 
@@ -351,8 +343,6 @@ parent-directory/
   claude-kit/          (umbrella repo, optional — for README sync)
   claude-sandbox/      (sandbox repo, optional)
 ```
-
-Note: a legacy `claude-skills/` directory may exist alongside these. It is **deprecated** in favor of the claude-plugins marketplace — do not sync to it.
 
 ### Merge conflicts
 This skill does a one-way overwrite (project → upstream). If the upstream has changes not present in this project, those will be lost. Check `git diff` in the upstream repo before syncing if you suspect divergence.

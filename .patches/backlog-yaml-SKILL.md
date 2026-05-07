@@ -19,6 +19,12 @@ See `references/cli-reference.md` for the full command reference with examples.
 # Query stories by status
 python3 scripts/backlog/backlog.py query --status todo --fields id,title,priority
 
+# Dependency-aware status overview
+python3 scripts/backlog/backlog.py status
+
+# Query with blocked_by virtual field
+python3 scripts/backlog/backlog.py query --status todo --fields id,title,blocked_by
+
 # Select next eligible work (deterministic algorithm)
 python3 scripts/backlog/backlog.py next-work --format json
 
@@ -27,6 +33,7 @@ python3 scripts/backlog/backlog.py get S-052
 
 # Set a scalar field
 python3 scripts/backlog/backlog.py set S-052 status in_progress
+python3 scripts/backlog/backlog.py set S-052 ticket_mode mixed
 
 # Set a text field from stdin
 echo "Changes requested: missing null guard" | python3 scripts/backlog/backlog.py set-text S-052 review_feedback
@@ -67,24 +74,12 @@ python3 scripts/backlog/backlog.py validate --strict
 | 2 | Story not found |
 | 3 | File error (cannot read/write) |
 
-## Spike Dependencies
-
-Stories can use `requires_reviewed: [S-xxx]` to block until the listed stories
-reach `done` status (not just `uat`). This is stronger than `requires` and is
-used when downstream stories depend on user review of a spike's output.
-
-Stories with `interactive: true` require an interactive Claude session (not Ralph
-auto mode). Use `--non-interactive` with `next-work` to skip these in autonomous
-loops:
-
-```bash
-python3 scripts/backlog/backlog.py next-work --non-interactive --format json
-```
-
 ## Important Rules
 
 - New stories always get `status: todo`
 - IDs are globally unique across both `backlog.yaml` and `backlog_done.yaml`
 - The `complexity` field (`low`, `medium`, `high`) is required for new entries
-- Agents never set `status: done` — only users via `/uat-review`
+- Agents never set `status: done` — only users via `/backlog-grooming`
 - All mutations validate before writing — invalid data is never persisted
+- `ticket_mode` controls dispatch: `autonomous` (default/omitted), `interactive`, `mixed`
+- Interactive AC in mixed-mode stories are prefixed with `[INTERACTIVE]`

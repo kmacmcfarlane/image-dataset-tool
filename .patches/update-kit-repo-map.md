@@ -49,7 +49,7 @@ claude-templates/
 ```
 
 ### Key facts
-- `.claude/skills/` is in `.gitignore` — skills are NOT checked into the template
+- Skills are NOT in the template — they come from the claude-kit plugin (installed via marketplace)
 - The `local-web-app/` prefix is required when constructing upstream paths
 - 11 files are synced: 6 agent docs + 5 subagent definitions
 
@@ -58,7 +58,7 @@ claude-templates/
 - **Repo**: `kmacmcfarlane/claude-plugins`
 - **Expected local path**: Sibling to project root (`../claude-plugins`)
 - **Marker**: `.claude-plugin/marketplace.json` exists
-- **Purpose**: Plugin marketplace bundling reusable Claude Code skills into installable plugins. Replaces the deprecated `claude-skills` repo.
+- **Purpose**: Plugin marketplace bundling reusable Claude Code skills into installable plugins.
 
 ### Structure
 
@@ -84,7 +84,7 @@ claude-plugins/
     │       │   ├── SKILL.md
     │       │   └── references/
     │       ├── sandbox/               (claude-sandbox config)
-    │       └── sync-claude-kit-skills (internal sync helper)
+    │       └── new-project-from-template/ (project scaffolding)
     ├── mcfacehead/            (homelab infrastructure namespace)
     │   └── skills/...
     └── ai-scripts/            (ai-scripts namespace)
@@ -95,7 +95,6 @@ claude-plugins/
 - Each skill is a directory under `plugins/<namespace>/skills/` containing at minimum `SKILL.md`
 - Skill directory names must match the `name` field in SKILL.md frontmatter
 - When syncing upstream, copy the entire directory tree to `plugins/claude-kit/skills/<name>/`
-- The legacy `claude-skills/` repo is **deprecated** — do NOT sync to it. If a `../claude-skills/` directory exists, ignore it.
 - After pushing changes to claude-plugins, projects subscribed to the marketplace can install/update affected skills with the `/plugins` slash command in Claude Code.
 
 ## claude-sandbox
