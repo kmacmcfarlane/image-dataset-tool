@@ -1,0 +1,172 @@
+// Package service contains business logic.
+package service
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/google/uuid"
+	logrus "github.com/sirupsen/logrus"
+
+	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/fileformat"
+	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
+	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
+)
+
+// ProjectService handles project business logic.
+type ProjectService struct {
+	store   *store.ProjectStore
+	dataDir string
+}
+
+// NewProjectService creates a new ProjectService.
+func NewProjectService(store *store.ProjectStore, dataDir string) *ProjectService {
+	return &ProjectService{store: store, dataDir: dataDir}
+}
+
+// Create creates a new project with manifest-first write ordering (PRD §11.1).
+func (s *ProjectService) Create(name, description string) (*model.Project, error) {
+	slug := model.GenerateSlug(name)
+	if slug == "" {
+		return nil, fmt.Errorf("cannot generate slug from name %q: %w", name, ErrBadRequest)
+	}
+
+	// Check slug uniqueness before filesystem write.
+	exists, err := s.store.SlugExists(slug)
+	if err != nil {
+		return nil, fmt.Errorf("check slug: %w", err)
+	}
+	if exists {
+		return nil, fmt.Errorf("slug %q already exists: %w", slug, ErrConflict)
+	}
+
+	id := uuid.New().String()
+	p := &model.Project{
+		ID:          id,
+		Slug:        slug,
+		Name:        name,
+		Description: description,
+	}
+
+	// Create project directory.
+	projectDir := filepath.Join(s.dataDir, "projects", slug)
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		return nil, fmt.Errorf("create project directory: %w", err)
+	}
+
+	// Create subjects subdirectory.
+	subjectsDir := filepath.Join(projectDir, "subjects")
+	if err := os.MkdirAll(subjectsDir, 0755); err != nil {
+		return nil, fmt.Errorf("create subjects directory: %w", err)
+	}
+
+	// Write manifest first (atomic rename), then DB insert (PRD §11.1).
+	manifest := &fileformat.ProjectManifest{
+		ID:          p.ID,
+		Slug:        p.Slug,
+		Name:        p.Name,
+		Description: p.Description,
+	}
+
+	manifestPath := filepath.Join(projectDir, "manifest.json")
+	if err := fileformat.WriteProjectManifest(manifestPath, manifest); err != nil {
+		// Clean up directory on manifest write failure.
+		os.RemoveAll(projectDir)
+		return nil, fmt.Errorf("write manifest: %w", err)
+	}
+
+	// DB insert after manifest.
+	if err := s.store.Create(p); err != nil {
+		// Manifest is still valid; reconciler will recover on next startup.
+		logrus.WithError(err).WithField("slug", slug).Warn("DB insert failed after manifest write; reconciler will recover")
+		return nil, fmt.Errorf("store project: %w", err)
+	}
+
+	// Update manifest timestamps from DB.
+	manifest.CreatedAt = p.CreatedAt
+	manifest.UpdatedAt = p.UpdatedAt
+	if err := fileformat.WriteProjectManifest(manifestPath, manifest); err != nil {
+		logrus.WithError(err).Warn("Failed to update manifest with timestamps; non-fatal")
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"id":   p.ID,
+		"slug": p.Slug,
+	}).Info("Project created")
+
+	return p, nil
+}
+
+// Get retrieves a project by ID with subject count.
+func (s *ProjectService) Get(id string) (*model.Project, error) {
+	p, err := s.store.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+// List returns all projects.
+func (s *ProjectService) List() ([]*model.Project, error) {
+	return s.store.List()
+}
+
+// Update modifies project name and/or description.
+func (s *ProjectService) Update(id string, name *string, description *string) (*model.Project, error) {
+	if name == nil && description == nil {
+		return s.store.Get(id)
+	}
+
+	p, err := s.store.Update(id, name, description)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update manifest on disk.
+	projectDir := filepath.Join(s.dataDir, "projects", p.Slug)
+	manifestPath := filepath.Join(projectDir, "manifest.json")
+	manifest := &fileformat.ProjectManifest{
+		ID:          p.ID,
+		Slug:        p.Slug,
+		Name:        p.Name,
+		Description: p.Description,
+		CreatedAt:   p.CreatedAt,
+		UpdatedAt:   p.UpdatedAt,
+	}
+	if err := fileformat.WriteProjectManifest(manifestPath, manifest); err != nil {
+		logrus.WithError(err).Warn("Failed to update manifest after project update; non-fatal")
+	}
+
+	return p, nil
+}
+
+// Delete removes a project. If hardDelete is true, the project directory is also removed.
+func (s *ProjectService) Delete(id string, hardDelete bool) error {
+	// Get project to find slug for directory removal.
+	p, err := s.store.Get(id)
+	if err != nil {
+		return err
+	}
+
+	// Delete from DB (cascades to subjects etc.).
+	if err := s.store.Delete(id); err != nil {
+		return err
+	}
+
+	if hardDelete {
+		projectDir := filepath.Join(s.dataDir, "projects", p.Slug)
+		if err := os.RemoveAll(projectDir); err != nil {
+			logrus.WithError(err).WithField("dir", projectDir).Warn("Failed to remove project directory")
+		} else {
+			logrus.WithField("dir", projectDir).Info("Project directory removed")
+		}
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"id":          p.ID,
+		"hard_delete": hardDelete,
+	}).Info("Project deleted")
+
+	return nil
+}

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-009: CRUD projects: API + manifests + frontend
+- Five Goa-designed project API endpoints: POST /v1/projects (201), GET /v1/projects, GET /v1/projects/{id} (with subject count), PUT /v1/projects/{id}, DELETE /v1/projects/{id} (soft/hard delete via hard_delete query param)
+- Auto-generated slugs (lowercase, hyphens, max 64 chars) from project name; immutable after creation; 409 on duplicate
+- Manifest-first write ordering per PRD 11.1: atomic rename, then DB insert; filesystem reconciler recovers on DB failure
+- Frontend project list view at / with card grid, create dialog, edit/delete context menu, hard-delete checkbox in delete confirmation
+- Pinia store, API client module, backend service/store layers with full Ginkgo test coverage (slug edge cases, cascade delete, duplicate detection)
+- Playwright E2E test: create, read, update, delete round trip
+
 ### S-006: API server skeleton: Goa design, structured logging, SSE, media serving, Swagger
 - Enhanced health endpoint (GET /health) with per-subsystem status: SQLite, NATS, $DATA_DIR writable, encryption key; returns 200/503 with detail map
 - SSE endpoint (GET /api/sse) with in-memory ring buffer and Last-Event-ID reconnection replay; wired to existing ChannelEventSink pipeline

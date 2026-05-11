@@ -11,6 +11,8 @@ import (
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api"
 	health "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/health"
 	healthsvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/health/server"
+	genprojects "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/projects"
+	projectssvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/projects/server"
 	genqueues "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/queues"
 	queuessvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/queues/server"
 	gensettings "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/settings"
@@ -20,6 +22,7 @@ import (
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/natsutil"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/pipeline"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/reconciler"
+	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/service"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
 	goahttp "goa.design/goa/v3/http"
 )
@@ -99,8 +102,13 @@ func main() {
 	secretsStore := store.NewSecretsStore(db, encKey)
 	settingsSvc := api.NewSettingsService(secretsStore, dir, cfg)
 
+	projectStore := store.NewProjectStore(db)
+	projectSvc := service.NewProjectService(projectStore, dir)
+	projectsAPISvc := api.NewProjectsService(projectSvc)
+
 	// Create endpoints.
 	healthEndpoints := health.NewEndpoints(healthSvc)
+	projectsEndpoints := genprojects.NewEndpoints(projectsAPISvc)
 	queuesEndpoints := genqueues.NewEndpoints(queuesSvc)
 	settingsEndpoints := gensettings.NewEndpoints(settingsSvc)
 
@@ -110,6 +118,9 @@ func main() {
 	// Create and mount Goa-generated servers.
 	healthServer := healthsvr.New(healthEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
 	healthsvr.Mount(mux, healthServer)
+
+	projectsServer := projectssvr.New(projectsEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
+	projectssvr.Mount(mux, projectsServer)
 
 	queuesServer := queuessvr.New(queuesEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
 	queuessvr.Mount(mux, queuesServer)
