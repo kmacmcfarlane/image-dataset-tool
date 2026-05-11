@@ -533,8 +533,8 @@ Images should cover multiple dimensions simultaneously. For example, a "close-up
 3. **GPT-4o-mini** — $0.15 per 500 images
 4. **Claude Haiku 3.5** — $1.00 per 500 images
 5. **Gemini 2.5 Pro** — $1.20 per 500 images
-6. **GPT-4o** — $2.10 per 500 images
-7. **Grok 2 Vision** — $2.00 per 500 images
+6. **Grok 2 Vision** — $2.00 per 500 images
+7. **GPT-4o** — $2.10 per 500 images
 8. **Claude Sonnet 4** — $3.70 per 500 images
 9. **Claude Opus 4** — $18.75 per 500 images
 
