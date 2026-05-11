@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Sample, SampleNewEvent, SampleUpdatedEvent } from '../api/samples'
-import { listSamples, updateSampleStatus, bulkUpdateSampleStatus } from '../api/samples'
+import type { Sample, SampleNewEvent, SampleUpdatedEvent, EditRequest, EditResponse } from '../api/samples'
+import { listSamples, updateSampleStatus, bulkUpdateSampleStatus, updateSampleEdits, resetSampleEdits, getSampleEdits } from '../api/samples'
 
 /**
  * Samples store implementing the connect-then-fetch pattern (PRD §8.3, §11.5).
@@ -355,6 +355,90 @@ export const useSamplesStore = defineStore('samples', () => {
     return null
   }
 
+  // --- Edit state (S-019) ---
+  const editsBySampleId = ref<Map<string, EditResponse>>(new Map())
+  const editSaving = ref(false)
+
+  // Debounce timers keyed by sample ID.
+  const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  const DEBOUNCE_MS = 500
+
+  /** Load current edits for a sample from the backend. */
+  async function loadEdits(sampleId: string): Promise<EditResponse | null> {
+    try {
+      const edits = await getSampleEdits(sampleId)
+      editsBySampleId.value.set(sampleId, edits)
+      return edits
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Save edits for a sample with debounce (auto-save on edit).
+   * Cancels any pending save for the same sample.
+   */
+  function saveEditsDebounced(sampleId: string, edits: EditRequest): void {
+    // Cancel previous debounce for this sample.
+    const existing = debounceTimers.get(sampleId)
+    if (existing) {
+      clearTimeout(existing)
+    }
+
+    debounceTimers.set(sampleId, setTimeout(async () => {
+      debounceTimers.delete(sampleId)
+      editSaving.value = true
+      try {
+        const result = await updateSampleEdits(sampleId, edits)
+        editsBySampleId.value.set(sampleId, result)
+      } catch (e) {
+        error.value = e instanceof Error ? e.message : 'Failed to save edits'
+      } finally {
+        editSaving.value = false
+      }
+    }, DEBOUNCE_MS))
+  }
+
+  /** Save edits immediately (no debounce). */
+  async function saveEditsImmediate(sampleId: string, edits: EditRequest): Promise<void> {
+    // Cancel any pending debounce.
+    const existing = debounceTimers.get(sampleId)
+    if (existing) {
+      clearTimeout(existing)
+      debounceTimers.delete(sampleId)
+    }
+
+    editSaving.value = true
+    try {
+      const result = await updateSampleEdits(sampleId, edits)
+      editsBySampleId.value.set(sampleId, result)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to save edits'
+    } finally {
+      editSaving.value = false
+    }
+  }
+
+  /** Reset all edits for a sample to original (saves immediately). */
+  async function resetEdits(sampleId: string): Promise<void> {
+    // Cancel any pending debounce.
+    const existing = debounceTimers.get(sampleId)
+    if (existing) {
+      clearTimeout(existing)
+      debounceTimers.delete(sampleId)
+    }
+
+    editSaving.value = true
+    try {
+      await resetSampleEdits(sampleId)
+      editsBySampleId.value.delete(sampleId)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to reset edits'
+    } finally {
+      editSaving.value = false
+    }
+  }
+
   return {
     // State
     samplesMap,
@@ -368,6 +452,8 @@ export const useSamplesStore = defineStore('samples', () => {
     selectedIds,
     focusedId,
     lastClickedId,
+    editsBySampleId,
+    editSaving,
     // Computed
     allSamples,
     filteredSamples,
@@ -386,5 +472,9 @@ export const useSamplesStore = defineStore('samples', () => {
     clearSelection,
     moveFocus,
     applyStatus,
+    loadEdits,
+    saveEditsDebounced,
+    saveEditsImmediate,
+    resetEdits,
   }
 })

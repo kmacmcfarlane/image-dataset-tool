@@ -53,6 +53,7 @@ The API is organized into Goa services, each mapping to a resource domain:
 | queues      | /v1/queues   | NATS JetStream queue admin           |
 | settings    | /v1/settings | Secrets, config, provider testing    |
 | samples*    | /v1/samples  | Sample status updates (single + bulk)|
+| edits*      | /v1/samples  | Edit operations persistence (CRUD)   |
 | media*      | /v1/media    | Raw image and thumbnail serving      |
 | sse*        | /api/sse     | Server-sent events stream            |
 | docs*       | /docs        | Swagger UI and OpenAPI spec          |

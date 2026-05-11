@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-019: Edit-ops persistence infrastructure
+- `PUT /v1/samples/{id}/edits` creates/updates edits row in DB and atomically writes to sample manifest (file lock + atomic rename)
+- `GET /v1/samples/{id}/edits` reads current edits (returns defaults if none exist)
+- `DELETE /v1/samples/{id}/edits` resets all edits to original, clearing DB row and manifest
+- File-level locking (flock) prevents lost updates from concurrent UI + pipeline manifest writes
+- `auto_actions_json` field records which auto-correction helpers were applied
+- Edits are idempotent: saving empty edits is equivalent to reset
+- Reconciler rebuilds edits table from on-disk manifests on startup
+- Frontend: debounced auto-save on edit (500ms), immediate save on reset; edit state in Pinia store
+- Frontend: "Reset Edits" button in sample grid controls clears all edits for focused sample
+
 ### S-018: Keep/reject + multi-select + bulk actions
 - Two new API endpoints: `PUT /v1/samples/{id}/status` (single) and `PUT /v1/samples/bulk-status` (atomic batch with transaction)
 - Keyboard-driven review: K=keep, R=reject with optimistic update and auto-advance; Shift+click range select; Ctrl+A/Ctrl+Shift+A select/deselect all

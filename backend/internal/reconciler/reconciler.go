@@ -344,6 +344,11 @@ func reconcileSamples(db *sql.DB, diskSamples []diskSample) error {
 		if err := reconcileCaptions(db, m.ID, m.Captions); err != nil {
 			return fmt.Errorf("reconcile captions for sample %s: %w", m.ID, err)
 		}
+
+		// Reconcile edits for this sample.
+		if err := reconcileEdits(db, m.ID, m.Edits); err != nil {
+			return fmt.Errorf("reconcile edits for sample %s: %w", m.ID, err)
+		}
 	}
 
 	// Remove stale samples.
@@ -450,6 +455,55 @@ func reconcileCaptions(db *sql.DB, sampleID string, captions map[string]fileform
 	}
 
 	return nil
+}
+
+// reconcileEdits syncs edits from a sample's manifest into the edits table.
+// If the manifest has non-default edits, upsert the row. If edits are default
+// (no rotation, no crop, no auto_actions), delete the row.
+func reconcileEdits(db *sql.DB, sampleID string, edits fileformat.SampleEdits) error {
+	hasEdits := edits.RotationDeg != 0 || edits.CropBox != nil || len(edits.AutoActions) > 0
+
+	if !hasEdits {
+		// Remove any existing edits row.
+		_, err := db.Exec("DELETE FROM edits WHERE sample_id=?", sampleID)
+		return err
+	}
+
+	var cropBoxJSON *string
+	if edits.CropBox != nil {
+		data, err := json.Marshal(edits.CropBox)
+		if err == nil {
+			s := string(data)
+			cropBoxJSON = &s
+		}
+	}
+
+	var autoActionsJSON *string
+	if len(edits.AutoActions) > 0 {
+		data, err := json.Marshal(edits.AutoActions)
+		if err == nil {
+			s := string(data)
+			autoActionsJSON = &s
+		}
+	}
+
+	// Check if row exists.
+	var exists int
+	err := db.QueryRow("SELECT COUNT(*) FROM edits WHERE sample_id=?", sampleID).Scan(&exists)
+	if err != nil {
+		return err
+	}
+
+	now := "2026-01-01T00:00:00Z" // Use a stable timestamp for reconciler-created rows.
+	if exists > 0 {
+		_, err = db.Exec(`UPDATE edits SET rotation_deg=?, crop_box_json=?, auto_actions_json=?, updated_at=? WHERE sample_id=?`,
+			edits.RotationDeg, cropBoxJSON, autoActionsJSON, now, sampleID)
+	} else {
+		_, err = db.Exec(`INSERT INTO edits (sample_id, rotation_deg, crop_box_json, auto_actions_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+			sampleID, edits.RotationDeg, cropBoxJSON, autoActionsJSON, now, now)
+	}
+
+	return err
 }
 
 // queryIDs returns a set of IDs from a simple SELECT query.

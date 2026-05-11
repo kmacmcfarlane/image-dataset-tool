@@ -7,13 +7,19 @@ vi.mock('../../api/samples', () => ({
   listSamples: vi.fn(),
   updateSampleStatus: vi.fn(),
   bulkUpdateSampleStatus: vi.fn(),
+  getSampleEdits: vi.fn(),
+  updateSampleEdits: vi.fn(),
+  resetSampleEdits: vi.fn(),
 }))
 
-import { listSamples, updateSampleStatus, bulkUpdateSampleStatus } from '../../api/samples'
+import { listSamples, updateSampleStatus, bulkUpdateSampleStatus, getSampleEdits, updateSampleEdits, resetSampleEdits } from '../../api/samples'
 
 const mockListSamples = vi.mocked(listSamples)
 const mockUpdateSampleStatus = vi.mocked(updateSampleStatus)
 const mockBulkUpdateSampleStatus = vi.mocked(bulkUpdateSampleStatus)
+const mockGetSampleEdits = vi.mocked(getSampleEdits)
+const mockUpdateSampleEdits = vi.mocked(updateSampleEdits)
+const mockResetSampleEdits = vi.mocked(resetSampleEdits)
 
 // Mock EventSource.
 class MockEventSource {
@@ -427,6 +433,106 @@ describe('useSamplesStore', () => {
       await store.applyStatus('kept')
 
       expect(mockUpdateSampleStatus).toHaveBeenCalledWith('sam-1', 'kept')
+    })
+  })
+
+  // AC: FE: Auto-save on edit (debounced)
+  describe('edit operations (S-019)', () => {
+    beforeEach(async () => {
+      mockListSamples.mockResolvedValue({
+        samples: [makeSample({ id: 'sam-1' })],
+      })
+      mockGetSampleEdits.mockResolvedValue({
+        sample_id: 'sam-1',
+        rotation_deg: 0,
+        crop_box: null,
+        auto_actions: [],
+      })
+      mockUpdateSampleEdits.mockResolvedValue({
+        sample_id: 'sam-1',
+        rotation_deg: 90,
+        crop_box: null,
+        auto_actions: [],
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      })
+      mockResetSampleEdits.mockResolvedValue(undefined)
+    })
+
+    it('loadEdits fetches and stores edits', async () => {
+      const store = useSamplesStore()
+      await store.connectAndFetch('sub-1')
+
+      const result = await store.loadEdits('sam-1')
+      expect(mockGetSampleEdits).toHaveBeenCalledWith('sam-1')
+      expect(result).not.toBeNull()
+      expect(store.editsBySampleId.get('sam-1')).toBeDefined()
+    })
+
+    it('saveEditsDebounced debounces API calls', async () => {
+      vi.useFakeTimers()
+
+      const store = useSamplesStore()
+      await store.connectAndFetch('sub-1')
+
+      const edits = { rotation_deg: 90, auto_actions: [] }
+      store.saveEditsDebounced('sam-1', edits)
+      store.saveEditsDebounced('sam-1', edits) // second call replaces first
+
+      // Not called yet (debounced).
+      expect(mockUpdateSampleEdits).not.toHaveBeenCalled()
+
+      // Advance past debounce.
+      await vi.advanceTimersByTimeAsync(600)
+
+      expect(mockUpdateSampleEdits).toHaveBeenCalledTimes(1)
+      expect(mockUpdateSampleEdits).toHaveBeenCalledWith('sam-1', edits)
+
+      vi.useRealTimers()
+    })
+
+    it('saveEditsImmediate saves without debounce', async () => {
+      const store = useSamplesStore()
+      await store.connectAndFetch('sub-1')
+
+      await store.saveEditsImmediate('sam-1', { rotation_deg: 90, auto_actions: [] })
+      expect(mockUpdateSampleEdits).toHaveBeenCalledTimes(1)
+    })
+
+    // AC: FE: Reset button clears all edits and saves immediately
+    it('resetEdits calls API and clears local edits', async () => {
+      const store = useSamplesStore()
+      await store.connectAndFetch('sub-1')
+
+      // Load and then reset.
+      await store.loadEdits('sam-1')
+      expect(store.editsBySampleId.has('sam-1')).toBe(true)
+
+      await store.resetEdits('sam-1')
+      expect(mockResetSampleEdits).toHaveBeenCalledWith('sam-1')
+      expect(store.editsBySampleId.has('sam-1')).toBe(false)
+    })
+
+    it('resetEdits cancels pending debounced save', async () => {
+      vi.useFakeTimers()
+
+      const store = useSamplesStore()
+      await store.connectAndFetch('sub-1')
+
+      // Start a debounced save.
+      store.saveEditsDebounced('sam-1', { rotation_deg: 90, auto_actions: [] })
+
+      // Reset immediately (should cancel debounce).
+      await store.resetEdits('sam-1')
+
+      // Advance past debounce.
+      await vi.advanceTimersByTimeAsync(600)
+
+      // Only reset should have been called, not the debounced save.
+      expect(mockResetSampleEdits).toHaveBeenCalledTimes(1)
+      expect(mockUpdateSampleEdits).not.toHaveBeenCalled()
+
+      vi.useRealTimers()
     })
   })
 

@@ -164,6 +164,13 @@ func main() {
 	mux.Handle("PUT", "/v1/samples/{id}/status", http.HandlerFunc(samplesHandler.ServeUpdateStatus))
 	mux.Handle("PUT", "/v1/samples/bulk-status", http.HandlerFunc(samplesHandler.ServeBulkUpdateStatus))
 
+	editStore := store.NewEditStore(db)
+	editService := service.NewEditService(editStore, sampleStore, dir)
+	editsHandler := api.NewEditsHandler(editService)
+	mux.Handle("GET", "/v1/samples/{id}/edits", http.HandlerFunc(editsHandler.ServeGetEdits))
+	mux.Handle("PUT", "/v1/samples/{id}/edits", http.HandlerFunc(editsHandler.ServePutEdits))
+	mux.Handle("DELETE", "/v1/samples/{id}/edits", http.HandlerFunc(editsHandler.ServeDeleteEdits))
+
 	mux.Handle("GET", "/api/sse", http.HandlerFunc(sseHandler.ServeHTTP))
 
 	mux.Handle("GET", "/docs", api.DocsHandler())

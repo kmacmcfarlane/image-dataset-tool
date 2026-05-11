@@ -47,6 +47,15 @@
           >
             Show duplicates
           </n-checkbox>
+          <n-divider vertical />
+          <n-button
+            size="small"
+            :disabled="!store.focusedId"
+            data-testid="reset-edits-btn"
+            @click="onResetEdits"
+          >
+            Reset Edits
+          </n-button>
         </n-space>
       </div>
     </div>
@@ -125,7 +134,7 @@
  */
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { NCheckbox, NDivider, NEmpty, NSpace, NSpin, NText } from 'naive-ui'
+import { NButton, NCheckbox, NDivider, NEmpty, NSpace, NSpin, NText } from 'naive-ui'
 import { useSamplesStore } from '../stores/samples'
 import SampleThumbnail from '../components/SampleThumbnail.vue'
 
@@ -182,6 +191,13 @@ function onScroll(): void {
 function updateContainerSize(): void {
   if (scrollContainer.value) {
     containerHeight.value = scrollContainer.value.clientHeight
+  }
+}
+
+/** Reset edits for the focused sample (saves immediately). */
+async function onResetEdits(): Promise<void> {
+  if (store.focusedId) {
+    await store.resetEdits(store.focusedId)
   }
 }
 

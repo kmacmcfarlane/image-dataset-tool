@@ -458,6 +458,134 @@ var _ = Describe("Reconciler", func() {
 			})
 		})
 	})
+
+	Context("edits", func() {
+		It("imports edits from sample manifest into edits table", func() {
+			writeProject(dataDir, &fileformat.ProjectManifest{
+				ID: "proj-001", Slug: "my-project", Name: "P",
+				CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z",
+			})
+			writeSubject(dataDir, "my-project", &fileformat.SubjectManifest{
+				ID: "subj-001", ProjectID: "proj-001", Slug: "test-subject", Name: "S",
+				CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z",
+			})
+			writeSample(dataDir, "my-project", "test-subject", &fileformat.SampleMetadata{
+				ID: "samp-001",
+				Source: fileformat.SampleSource{
+					Platform: "instagram", PostID: "POST1", SlideIndex: 0,
+				},
+				File: fileformat.SampleFile{
+					Path: "samp-001.jpg", SHA256: "abc", PHash: "def",
+					Width: 1080, Height: 1350,
+				},
+				Status: "kept",
+				Edits: fileformat.SampleEdits{
+					RotationDeg: 90.0,
+					CropBox:     &fileformat.CropBox{X: 10, Y: 20, W: 100, H: 200},
+					AutoActions: []string{"remove_borders"},
+				},
+				Captions:  map[string]fileformat.Caption{},
+				FetchedAt: "2026-01-01T00:00:00Z",
+				CreatedAt: "2026-01-01T00:00:00Z",
+				UpdatedAt: "2026-01-01T00:00:00Z",
+			})
+
+			Expect(reconciler.Run(db, dataDir)).To(Succeed())
+
+			var rotDeg float64
+			var cropJSON, autoJSON *string
+			err := db.QueryRow("SELECT rotation_deg, crop_box_json, auto_actions_json FROM edits WHERE sample_id=?", "samp-001").Scan(&rotDeg, &cropJSON, &autoJSON)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(rotDeg).To(Equal(90.0))
+			Expect(cropJSON).NotTo(BeNil())
+			Expect(*cropJSON).To(ContainSubstring(`"x":10`))
+			Expect(autoJSON).NotTo(BeNil())
+			Expect(*autoJSON).To(ContainSubstring("remove_borders"))
+		})
+
+		It("does not create edits row when manifest has default edits", func() {
+			writeProject(dataDir, &fileformat.ProjectManifest{
+				ID: "proj-001", Slug: "my-project", Name: "P",
+				CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z",
+			})
+			writeSubject(dataDir, "my-project", &fileformat.SubjectManifest{
+				ID: "subj-001", ProjectID: "proj-001", Slug: "test-subject", Name: "S",
+				CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z",
+			})
+			writeSample(dataDir, "my-project", "test-subject", &fileformat.SampleMetadata{
+				ID: "samp-001",
+				Source: fileformat.SampleSource{
+					Platform: "instagram", PostID: "POST1", SlideIndex: 0,
+				},
+				File: fileformat.SampleFile{
+					Path: "samp-001.jpg", SHA256: "abc", PHash: "def",
+					Width: 1080, Height: 1350,
+				},
+				Status:    "kept",
+				Edits:     fileformat.SampleEdits{AutoActions: []string{}},
+				Captions:  map[string]fileformat.Caption{},
+				FetchedAt: "2026-01-01T00:00:00Z",
+				CreatedAt: "2026-01-01T00:00:00Z",
+				UpdatedAt: "2026-01-01T00:00:00Z",
+			})
+
+			Expect(reconciler.Run(db, dataDir)).To(Succeed())
+
+			var count int
+			Expect(db.QueryRow("SELECT COUNT(*) FROM edits WHERE sample_id=?", "samp-001").Scan(&count)).To(Succeed())
+			Expect(count).To(Equal(0))
+		})
+
+		It("removes stale edits row when manifest has no edits", func() {
+			// Set up project+subject+sample on disk and in DB.
+			writeProject(dataDir, &fileformat.ProjectManifest{
+				ID: "proj-001", Slug: "my-project", Name: "P",
+				CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z",
+			})
+			writeSubject(dataDir, "my-project", &fileformat.SubjectManifest{
+				ID: "subj-001", ProjectID: "proj-001", Slug: "test-subject", Name: "S",
+				CreatedAt: "2026-01-01T00:00:00Z", UpdatedAt: "2026-01-01T00:00:00Z",
+			})
+
+			// Pre-populate DB with project, subject, sample, and edit.
+			_, err := db.Exec(`INSERT INTO projects (id, slug, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+				"proj-001", "my-project", "P", "", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z")
+			Expect(err).NotTo(HaveOccurred())
+			_, err = db.Exec(`INSERT INTO subjects (id, project_id, slug, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+				"subj-001", "proj-001", "test-subject", "S", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z")
+			Expect(err).NotTo(HaveOccurred())
+			_, err = db.Exec(`INSERT INTO samples (id, subject_id, source_platform, source_post_id, slide_index, file_path, sha256, phash, width, height, fetched_at, status, is_duplicate, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				"samp-001", "subj-001", "instagram", "POST1", 0, "samp-001.jpg", "abc", "def", 1080, 1350, "2026-01-01T00:00:00Z", "kept", 0, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z")
+			Expect(err).NotTo(HaveOccurred())
+			_, err = db.Exec(`INSERT INTO edits (sample_id, rotation_deg, created_at, updated_at) VALUES (?, ?, ?, ?)`,
+				"samp-001", 90.0, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z")
+			Expect(err).NotTo(HaveOccurred())
+
+			// Write manifest with NO edits (defaults).
+			writeSample(dataDir, "my-project", "test-subject", &fileformat.SampleMetadata{
+				ID: "samp-001",
+				Source: fileformat.SampleSource{
+					Platform: "instagram", PostID: "POST1", SlideIndex: 0,
+				},
+				File: fileformat.SampleFile{
+					Path: "samp-001.jpg", SHA256: "abc", PHash: "def",
+					Width: 1080, Height: 1350,
+				},
+				Status:    "kept",
+				Edits:     fileformat.SampleEdits{AutoActions: []string{}},
+				Captions:  map[string]fileformat.Caption{},
+				FetchedAt: "2026-01-01T00:00:00Z",
+				CreatedAt: "2026-01-01T00:00:00Z",
+				UpdatedAt: "2026-01-01T00:00:00Z",
+			})
+
+			Expect(reconciler.Run(db, dataDir)).To(Succeed())
+
+			var count int
+			Expect(db.QueryRow("SELECT COUNT(*) FROM edits WHERE sample_id=?", "samp-001").Scan(&count)).To(Succeed())
+			Expect(count).To(Equal(0))
+		})
+	})
 })
 
 // Helper functions for writing test manifests.

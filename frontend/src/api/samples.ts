@@ -71,3 +71,56 @@ export function bulkUpdateSampleStatus(
     body: { ids, status },
   })
 }
+
+// --- Edit operations (S-019) ---
+
+/** Crop box region. */
+export interface CropBox {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+/** Request body for PUT /v1/samples/{id}/edits. */
+export interface EditRequest {
+  rotation_deg: number
+  crop_box?: CropBox | null
+  auto_actions: string[]
+}
+
+/** Response shape for edit operations. */
+export interface EditResponse {
+  sample_id: string
+  rotation_deg: number
+  crop_box: CropBox | null
+  auto_actions: string[]
+  created_at?: string
+  updated_at?: string
+}
+
+/** Fetch current edits for a sample. */
+export function getSampleEdits(sampleId: string): Promise<EditResponse> {
+  return apiFetch<EditResponse>(
+    `/v1/samples/${encodeURIComponent(sampleId)}/edits`,
+  )
+}
+
+/** Create or update edits for a sample (idempotent). */
+export function updateSampleEdits(
+  sampleId: string,
+  edits: EditRequest,
+): Promise<EditResponse> {
+  return apiFetch<EditResponse>(
+    `/v1/samples/${encodeURIComponent(sampleId)}/edits`,
+    { method: 'PUT', body: edits },
+  )
+}
+
+/** Reset all edits for a sample (returns to original). */
+export function resetSampleEdits(sampleId: string): Promise<void> {
+  return apiFetch<void>(
+    `/v1/samples/${encodeURIComponent(sampleId)}/edits`,
+    { method: 'DELETE' },
+  )
+}
