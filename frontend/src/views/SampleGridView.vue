@@ -100,6 +100,7 @@
               :data-testid="`sample-card-${sample.id}`"
               :data-sample-id="sample.id"
               @click="onCardClick(sample.id, $event)"
+              @dblclick="onCardDblclick(sample.id)"
             >
               <SampleThumbnail
                 :sample-id="sample.id"
@@ -115,6 +116,22 @@
         </div>
       </div>
     </n-spin>
+
+    <!-- Lightbox modal: double-click a card to open it with full edit controls -->
+    <n-modal
+      v-model:show="lightboxOpen"
+      data-testid="sample-lightbox"
+      :mask-closable="true"
+      preset="card"
+      style="width: 90vw; max-width: 1200px; height: 80vh;"
+      :title="`Sample ${lightboxSampleId ?? ''}`"
+      @after-leave="onLightboxClose"
+    >
+      <LightboxEditor
+        v-if="lightboxSampleId"
+        :sample-id="lightboxSampleId"
+      />
+    </n-modal>
   </div>
 </template>
 
@@ -131,17 +148,23 @@
  * - Ctrl+A: Select all visible
  * - Ctrl+Shift+A: Deselect all
  * - Escape: Clear selection
+ * - Double-click card: Open lightbox with full edit controls
  */
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { NButton, NCheckbox, NDivider, NEmpty, NSpace, NSpin, NText } from 'naive-ui'
+import { NButton, NCheckbox, NDivider, NEmpty, NModal, NSpace, NSpin, NText } from 'naive-ui'
 import { useSamplesStore } from '../stores/samples'
 import SampleThumbnail from '../components/SampleThumbnail.vue'
+import LightboxEditor from '../components/LightboxEditor.vue'
 
 const route = useRoute()
 const store = useSamplesStore()
 
 const scrollContainer = ref<HTMLElement | null>(null)
+
+// Lightbox state.
+const lightboxOpen = ref(false)
+const lightboxSampleId = ref<string | null>(null)
 
 // Virtual scroll configuration.
 const CARD_SIZE = 180 // px (card width/height including gap)
@@ -213,6 +236,17 @@ function onCardClick(id: string, event: MouseEvent): void {
     // Plain click: single select
     store.selectSample(id)
   }
+}
+
+/** AC: Double-click opens the lightbox editor for that sample. */
+function onCardDblclick(id: string): void {
+  lightboxSampleId.value = id
+  lightboxOpen.value = true
+}
+
+/** Called when the lightbox modal finishes closing. */
+function onLightboxClose(): void {
+  lightboxSampleId.value = null
 }
 
 /**

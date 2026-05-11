@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-021: Manual rectangle crop
+- New `CropEditor.vue` component: drag-to-draw, resizable, movable crop overlay positioned over the rotated image container; stored as percentages
+- `SampleDetailView.vue`: crop overlay + clip-path preview composing correctly with rotation (rotate first, then crop); crop section in controls panel; clear-crop button; auto-save + reset wired to edit-ops store
+- `LightboxEditor.vue`: same crop + rotation controls in a new lightbox component
+- `SampleGridView.vue`: double-click on a sample card opens the lightbox modal with `LightboxEditor`
+- E2E: 7 tests in `crop.spec.ts` covering overlay rendering, hint display, API payload validation, reset, and rotation+crop co-existence
+
 ### S-020: Rotate — 90-degree buttons + free-angle slider
 - Sample detail view: 90° left/right buttons + free-angle slider (0–359°), CSS transform preview (raw bytes untouched)
 - Auto-save via edit-ops debounce (S-019); reset button clears rotation; persists across reloads
