@@ -5,10 +5,8 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 ### S-020: Rotate — 90-degree buttons + free-angle slider
-- New `RotationEditor.vue` component: rotate-left/right 90° buttons and a free-angle slider (0–359°)
-- Sample detail view fully implemented: image preview with CSS `rotate()` transform (raw bytes untouched), rotation controls, auto-save via debounced store action, reset button
-- Rotation persists across page reloads via existing edit-ops infrastructure (S-019)
-- E2E tests: controls render, 90° compose, left/right buttons, CSS transform applied, API persistence round-trip
+- Sample detail view: 90° left/right buttons + free-angle slider (0–359°), CSS transform preview (raw bytes untouched)
+- Auto-save via edit-ops debounce (S-019); reset button clears rotation; persists across reloads
 
 ### S-019: Edit-ops persistence infrastructure
 - New REST endpoints (GET/PUT/DELETE `/v1/samples/{id}/edits`) persist edit operations to DB + sample manifest with flock-based concurrent access protection
