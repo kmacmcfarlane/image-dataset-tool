@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-025: Research spike: vision model captioning evaluation
+- Added `docs/captioning-spike.md` — comprehensive recommendation document for vision model captioning providers
+- Evaluated 5 provider categories: Anthropic Claude, OpenAI GPT-4o, Google Gemini, xAI Grok, local OAI-compatible models
+- Defined weighted evaluation criteria: accuracy (25%), detail (25%), consistency (20%), NL quality (15%), cost (10%), latency (5%)
+- Recommended Claude Sonnet 4 as Day-1 default with Gemini 2.5 Flash as budget alternative
+- Documented default prompt template for natural language SD/Flux training captions with design rationale
+- Catalogued provider-specific quirks for Captioner interface implementation (rate limit headers, image encoding, safety settings, etc.)
+- Designed 30-image gold set criteria for interactive evaluation phase
+
 ### S-017: Streaming grid view: connect-then-fetch, virtual scroll, lazy thumbnails
 - `GET /v1/subjects/{sid}/samples` returns full metadata array (no pagination per PRD §8.3); connect-then-fetch pattern: SSE first, fetch metadata, merge by ID
 - Virtual scroll renders only visible rows + buffer for 10k+ sample support; lazy thumbnail loading via IntersectionObserver
