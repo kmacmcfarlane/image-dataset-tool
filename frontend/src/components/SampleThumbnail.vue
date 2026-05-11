@@ -4,6 +4,13 @@
     class="sample-thumbnail"
     data-testid="sample-thumbnail"
     :data-sample-id="sampleId"
+    :class="{
+      'sample-selected': selected,
+      'sample-focused': focused,
+      'sample-status-kept': status === 'kept',
+      'sample-status-rejected': status === 'rejected',
+      'sample-status-pending': status === 'pending',
+    }"
   >
     <img
       v-if="isVisible && !imgError"
@@ -18,6 +25,15 @@
     </div>
     <div v-else class="thumb-placeholder">
       <span />
+    </div>
+
+    <!-- Selection checkbox overlay -->
+    <div
+      v-if="selected"
+      class="selection-check"
+      data-testid="selection-check"
+    >
+      &#10003;
     </div>
 
     <!-- Status badge -->
@@ -52,6 +68,8 @@
  * - status: current sample status (pending/kept/rejected)
  * - isDuplicate: whether the sample is marked duplicate
  * - duplicateOf: optional JSON array string of matched sample IDs
+ * - selected: whether this sample is currently selected
+ * - focused: whether this sample has keyboard focus
  */
 import { ref, onMounted, onUnmounted } from 'vue'
 
@@ -61,6 +79,8 @@ defineProps<{
   status: string
   isDuplicate: boolean
   duplicateOf?: string
+  selected?: boolean
+  focused?: boolean
 }>()
 
 const rootEl = ref<HTMLElement | null>(null)
@@ -108,6 +128,33 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   background: var(--n-color-embedded, #1a1a1a);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+/* AC: Visual indicators: green (kept), red (rejected), neutral (pending) */
+.sample-status-kept {
+  box-shadow: inset 0 0 0 3px rgba(50, 200, 100, 0.7);
+}
+
+.sample-status-rejected {
+  box-shadow: inset 0 0 0 3px rgba(220, 60, 60, 0.7);
+}
+
+.sample-selected {
+  box-shadow: inset 0 0 0 3px var(--n-primary-color, #63e2b7);
+}
+
+.sample-status-kept.sample-selected {
+  box-shadow: inset 0 0 0 3px rgba(50, 200, 100, 0.9);
+}
+
+.sample-status-rejected.sample-selected {
+  box-shadow: inset 0 0 0 3px rgba(220, 60, 60, 0.9);
+}
+
+.sample-focused {
+  outline: 2px solid var(--n-primary-color, #63e2b7);
+  outline-offset: -2px;
 }
 
 .thumb-img {
@@ -128,6 +175,23 @@ onUnmounted(() => {
 .thumb-error {
   color: var(--n-text-color-error, #e88080);
   font-size: 24px;
+}
+
+.selection-check {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--n-primary-color, #63e2b7);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
 .status-badge {

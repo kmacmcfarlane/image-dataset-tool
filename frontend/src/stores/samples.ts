@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Sample, SampleNewEvent, SampleUpdatedEvent } from '../api/samples'
-import { listSamples } from '../api/samples'
+import { listSamples, updateSampleStatus, bulkUpdateSampleStatus } from '../api/samples'
 
 /**
  * Samples store implementing the connect-then-fetch pattern (PRD §8.3, §11.5).
@@ -12,6 +12,8 @@ import { listSamples } from '../api/samples'
  * 3. Buffer SSE events received during fetch
  * 4. Merge buffered events by ID (idempotent)
  * 5. Continue applying real-time SSE events
+ *
+ * Also manages selection state, keep/reject actions, and auto-advance (S-018).
  */
 export const useSamplesStore = defineStore('samples', () => {
   // --- State ---
@@ -25,6 +27,11 @@ export const useSamplesStore = defineStore('samples', () => {
   const showKept = ref(false)
   const showRejected = ref(false)
   const showDuplicates = ref(false)
+
+  // Selection state.
+  const selectedIds = ref<Set<string>>(new Set())
+  const focusedId = ref<string | null>(null)
+  const lastClickedId = ref<string | null>(null)
 
   // SSE connection state.
   let eventSource: EventSource | null = null
@@ -48,6 +55,10 @@ export const useSamplesStore = defineStore('samples', () => {
 
   const totalCount = computed(() => samplesMap.value.size)
 
+  const selectedCount = computed(() => selectedIds.value.size)
+
+  const isSelected = computed(() => (id: string) => selectedIds.value.has(id))
+
   // --- Actions ---
 
   /** Connect SSE, fetch metadata, merge. Call when entering sample grid view. */
@@ -58,6 +69,7 @@ export const useSamplesStore = defineStore('samples', () => {
     fetchComplete = false
     bufferedEvents = []
     samplesMap.value = new Map()
+    clearSelection()
 
     // Step 1: Connect SSE first.
     connectSSE()
@@ -179,6 +191,170 @@ export const useSamplesStore = defineStore('samples', () => {
     showDuplicates.value = show
   }
 
+  // --- Selection actions ---
+
+  /** Select a single sample (click without modifiers). */
+  function selectSample(id: string): void {
+    selectedIds.value = new Set([id])
+    focusedId.value = id
+    lastClickedId.value = id
+  }
+
+  /** Toggle selection of a single sample (Ctrl+click or Space). */
+  function toggleSelect(id: string): void {
+    const newSet = new Set(selectedIds.value)
+    if (newSet.has(id)) {
+      newSet.delete(id)
+    } else {
+      newSet.add(id)
+    }
+    selectedIds.value = newSet
+    focusedId.value = id
+    lastClickedId.value = id
+  }
+
+  /** Range select from last clicked to target (Shift+click). */
+  function rangeSelect(id: string): void {
+    const filtered = filteredSamples.value
+    const lastIdx = lastClickedId.value
+      ? filtered.findIndex((s) => s.id === lastClickedId.value)
+      : -1
+    const targetIdx = filtered.findIndex((s) => s.id === id)
+    if (lastIdx === -1 || targetIdx === -1) {
+      selectSample(id)
+      return
+    }
+
+    const start = Math.min(lastIdx, targetIdx)
+    const end = Math.max(lastIdx, targetIdx)
+    const newSet = new Set(selectedIds.value)
+    for (let i = start; i <= end; i++) {
+      newSet.add(filtered[i].id)
+    }
+    selectedIds.value = newSet
+    focusedId.value = id
+  }
+
+  /** Select all visible (filtered) samples. */
+  function selectAll(): void {
+    selectedIds.value = new Set(filteredSamples.value.map((s) => s.id))
+  }
+
+  /** Deselect all. */
+  function clearSelection(): void {
+    selectedIds.value = new Set()
+  }
+
+  /** Move focus (and optionally selection) to adjacent sample. */
+  function moveFocus(direction: 'prev' | 'next'): void {
+    const filtered = filteredSamples.value
+    if (filtered.length === 0) return
+
+    const currentIdx = focusedId.value
+      ? filtered.findIndex((s) => s.id === focusedId.value)
+      : -1
+
+    let newIdx: number
+    if (currentIdx === -1) {
+      newIdx = 0
+    } else if (direction === 'next') {
+      newIdx = Math.min(currentIdx + 1, filtered.length - 1)
+    } else {
+      newIdx = Math.max(currentIdx - 1, 0)
+    }
+
+    focusedId.value = filtered[newIdx].id
+  }
+
+  // --- Status actions ---
+
+  /**
+   * Apply status to selected samples. Auto-advances to the sample after the
+   * last in selection (single selection: next sample; multi: after last in selection).
+   *
+   * Optimistically updates local state, then calls API.
+   */
+  async function applyStatus(status: 'kept' | 'rejected' | 'pending'): Promise<void> {
+    const ids = Array.from(selectedIds.value)
+    if (ids.length === 0 && focusedId.value) {
+      ids.push(focusedId.value)
+    }
+    if (ids.length === 0) return
+
+    // Determine advance target before changing state.
+    const advanceTarget = computeAdvanceTarget(ids)
+
+    // Optimistic update.
+    for (const id of ids) {
+      const sample = samplesMap.value.get(id)
+      if (sample) {
+        samplesMap.value.set(id, { ...sample, status, updated_at: new Date().toISOString() })
+      }
+    }
+
+    // Auto-advance.
+    clearSelection()
+    if (advanceTarget) {
+      selectSample(advanceTarget)
+    }
+
+    // API call.
+    try {
+      if (ids.length === 1) {
+        await updateSampleStatus(ids[0], status)
+      } else {
+        await bulkUpdateSampleStatus(ids, status)
+      }
+    } catch (e) {
+      // Revert optimistic update on failure — re-fetch.
+      error.value = e instanceof Error ? e.message : 'Failed to update status'
+      if (subjectId.value) {
+        const result = await listSamples(subjectId.value)
+        const newMap = new Map<string, Sample>()
+        for (const sample of result.samples) {
+          newMap.set(sample.id, sample)
+        }
+        samplesMap.value = newMap
+      }
+    }
+  }
+
+  /**
+   * Compute the sample ID to auto-advance to after applying a status action.
+   * Returns the next sample after the last selected sample in the filtered list,
+   * or null if there's no valid target.
+   */
+  function computeAdvanceTarget(actionIds: string[]): string | null {
+    const filtered = filteredSamples.value
+    if (filtered.length === 0) return null
+
+    // Find the highest index among selected IDs in the filtered list.
+    let maxIdx = -1
+    for (const id of actionIds) {
+      const idx = filtered.findIndex((s) => s.id === id)
+      if (idx > maxIdx) maxIdx = idx
+    }
+
+    if (maxIdx === -1) return null
+
+    // Look for the first sample after maxIdx that is NOT in the action set.
+    const actionSet = new Set(actionIds)
+    for (let i = maxIdx + 1; i < filtered.length; i++) {
+      if (!actionSet.has(filtered[i].id)) {
+        return filtered[i].id
+      }
+    }
+
+    // If no sample after, try before.
+    for (let i = maxIdx - 1; i >= 0; i--) {
+      if (!actionSet.has(filtered[i].id)) {
+        return filtered[i].id
+      }
+    }
+
+    return null
+  }
+
   return {
     // State
     samplesMap,
@@ -189,14 +365,26 @@ export const useSamplesStore = defineStore('samples', () => {
     showKept,
     showRejected,
     showDuplicates,
+    selectedIds,
+    focusedId,
+    lastClickedId,
     // Computed
     allSamples,
     filteredSamples,
     totalCount,
+    selectedCount,
+    isSelected,
     // Actions
     connectAndFetch,
     disconnect,
     setStatusFilter,
     setShowDuplicates,
+    selectSample,
+    toggleSelect,
+    rangeSelect,
+    selectAll,
+    clearSelection,
+    moveFocus,
+    applyStatus,
   }
 })

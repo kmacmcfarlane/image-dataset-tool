@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -91,6 +92,106 @@ func mapSampleToResponse(s *model.Sample) SampleResponse {
 	}
 }
 
+// UpdateStatusRequest is the JSON body for PUT /v1/samples/{id}/status.
+type UpdateStatusRequest struct {
+	Status string `json:"status"`
+}
+
+// BulkUpdateStatusRequest is the JSON body for PUT /v1/samples/bulk-status.
+type BulkUpdateStatusRequest struct {
+	IDs    []string `json:"ids"`
+	Status string   `json:"status"`
+}
+
+// BulkUpdateStatusResponse is the JSON response for PUT /v1/samples/bulk-status.
+type BulkUpdateStatusResponse struct {
+	Updated int64 `json:"updated"`
+}
+
+// ServeUpdateStatus handles PUT /v1/samples/{id}/status.
+func (h *SamplesHandler) ServeUpdateStatus(w http.ResponseWriter, r *http.Request) {
+	// Extract sample ID from path: /v1/samples/{id}/status
+	sampleID := extractSampleIDFromStatusPath(r.URL.Path)
+	if sampleID == "" || !sampleIDPattern.MatchString(sampleID) {
+		respondError(w, http.StatusBadRequest, "missing or invalid sample id")
+		return
+	}
+
+	var req UpdateStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+
+	if req.Status == "" {
+		respondError(w, http.StatusBadRequest, "status is required")
+		return
+	}
+
+	updated, err := h.store.UpdateStatus(sampleID, req.Status)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "sample not found")
+			return
+		}
+		if strings.Contains(err.Error(), "invalid status") {
+			respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		logrus.WithError(err).WithField("sample_id", sampleID).Error("Failed to update sample status")
+		respondError(w, http.StatusInternalServerError, "failed to update sample status")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(mapSampleToResponse(updated)); err != nil {
+		logrus.WithError(err).Error("Failed to encode update status response")
+	}
+}
+
+// ServeBulkUpdateStatus handles PUT /v1/samples/bulk-status.
+func (h *SamplesHandler) ServeBulkUpdateStatus(w http.ResponseWriter, r *http.Request) {
+	var req BulkUpdateStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+
+	if len(req.IDs) == 0 {
+		respondError(w, http.StatusBadRequest, "ids is required and must not be empty")
+		return
+	}
+
+	if req.Status == "" {
+		respondError(w, http.StatusBadRequest, "status is required")
+		return
+	}
+
+	// Validate all IDs.
+	for _, id := range req.IDs {
+		if !sampleIDPattern.MatchString(id) {
+			respondError(w, http.StatusBadRequest, "invalid sample id: "+id)
+			return
+		}
+	}
+
+	affected, err := h.store.BulkUpdateStatus(req.IDs, req.Status)
+	if err != nil {
+		if strings.Contains(err.Error(), "invalid status") {
+			respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		logrus.WithError(err).Error("Failed to bulk update sample status")
+		respondError(w, http.StatusInternalServerError, "failed to bulk update sample status")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(BulkUpdateStatusResponse{Updated: affected}); err != nil {
+		logrus.WithError(err).Error("Failed to encode bulk status response")
+	}
+}
+
 // extractSubjectID extracts the subject ID from path /v1/subjects/{sid}/samples.
 func extractSubjectID(urlPath string) string {
 	// Path format: /v1/subjects/{sid}/samples
@@ -104,4 +205,18 @@ func extractSubjectID(urlPath string) string {
 		return before
 	}
 	return rest
+}
+
+// extractSampleIDFromStatusPath extracts the sample ID from path /v1/samples/{id}/status.
+func extractSampleIDFromStatusPath(urlPath string) string {
+	const prefix = "/v1/samples/"
+	rest := strings.TrimPrefix(urlPath, prefix)
+	if rest == urlPath {
+		return ""
+	}
+	// Take everything up to "/status".
+	if before, _, found := strings.Cut(rest, "/"); found {
+		return before
+	}
+	return ""
 }

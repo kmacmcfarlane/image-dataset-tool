@@ -161,6 +161,8 @@ func main() {
 	sampleStore := store.NewSampleStore(db)
 	samplesHandler := api.NewSamplesHandler(sampleStore)
 	mux.Handle("GET", "/v1/subjects/{sid}/samples", http.HandlerFunc(samplesHandler.ServeList))
+	mux.Handle("PUT", "/v1/samples/{id}/status", http.HandlerFunc(samplesHandler.ServeUpdateStatus))
+	mux.Handle("PUT", "/v1/samples/bulk-status", http.HandlerFunc(samplesHandler.ServeBulkUpdateStatus))
 
 	mux.Handle("GET", "/api/sse", http.HandlerFunc(sseHandler.ServeHTTP))
 

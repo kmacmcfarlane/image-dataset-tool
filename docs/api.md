@@ -52,6 +52,7 @@ The API is organized into Goa services, each mapping to a resource domain:
 | health      | /health      | Health check with subsystem status   |
 | queues      | /v1/queues   | NATS JetStream queue admin           |
 | settings    | /v1/settings | Secrets, config, provider testing    |
+| samples*    | /v1/samples  | Sample status updates (single + bulk)|
 | media*      | /v1/media    | Raw image and thumbnail serving      |
 | sse*        | /api/sse     | Server-sent events stream            |
 | docs*       | /docs        | Swagger UI and OpenAPI spec          |

@@ -44,3 +44,30 @@ export function listSamples(subjectId: string): Promise<SampleListResult> {
     `/v1/subjects/${encodeURIComponent(subjectId)}/samples`,
   )
 }
+
+/** Update status of a single sample. Returns the updated sample. */
+export function updateSampleStatus(
+  sampleId: string,
+  status: 'pending' | 'kept' | 'rejected',
+): Promise<Sample> {
+  return apiFetch<Sample>(
+    `/v1/samples/${encodeURIComponent(sampleId)}/status`,
+    { method: 'PUT', body: { status } },
+  )
+}
+
+/** Bulk status update response. */
+export interface BulkUpdateStatusResult {
+  updated: number
+}
+
+/** Atomically update status for multiple samples. */
+export function bulkUpdateSampleStatus(
+  ids: string[],
+  status: 'pending' | 'kept' | 'rejected',
+): Promise<BulkUpdateStatusResult> {
+  return apiFetch<BulkUpdateStatusResult>('/v1/samples/bulk-status', {
+    method: 'PUT',
+    body: { ids, status },
+  })
+}

@@ -1,10 +1,22 @@
 <template>
-  <div class="sample-grid-view" data-testid="view-sample-grid">
+  <div
+    class="sample-grid-view"
+    data-testid="view-sample-grid"
+    tabindex="0"
+    @keydown="onKeydown"
+  >
     <div class="sample-grid-header">
       <h2>Sample Review Grid</h2>
       <div class="sample-grid-controls" data-testid="sample-grid-controls">
         <n-space align="center" :size="12">
           <n-text depth="3">{{ filteredCount }} / {{ totalCount }} samples</n-text>
+          <n-text
+            v-if="store.selectedCount > 0"
+            depth="3"
+            data-testid="selection-count"
+          >
+            ({{ store.selectedCount }} selected)
+          </n-text>
           <n-divider vertical />
           <n-checkbox
             :checked="store.showPending"
@@ -72,8 +84,13 @@
               v-for="sample in visibleSamples"
               :key="sample.id"
               class="sample-card"
+              :class="{
+                'card-selected': store.isSelected(sample.id),
+                'card-focused': store.focusedId === sample.id,
+              }"
               :data-testid="`sample-card-${sample.id}`"
               :data-sample-id="sample.id"
+              @click="onCardClick(sample.id, $event)"
             >
               <SampleThumbnail
                 :sample-id="sample.id"
@@ -81,6 +98,8 @@
                 :status="sample.status"
                 :is-duplicate="sample.is_duplicate"
                 :duplicate-of="sample.duplicate_of"
+                :selected="store.isSelected(sample.id)"
+                :focused="store.focusedId === sample.id"
               />
             </div>
           </div>
@@ -91,6 +110,19 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * SampleGridView: Virtual-scrolled sample review grid with selection and keyboard shortcuts.
+ *
+ * Keyboard shortcuts (PRD §8.3.1):
+ * - K: Keep selected/focused sample(s)
+ * - R: Reject selected/focused sample(s)
+ * - Arrow left/right: Navigate prev/next sample
+ * - Space: Toggle selection on focused sample
+ * - Shift+Click: Range select
+ * - Ctrl+A: Select all visible
+ * - Ctrl+Shift+A: Deselect all
+ * - Escape: Clear selection
+ */
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { NCheckbox, NDivider, NEmpty, NSpace, NSpin, NText } from 'naive-ui'
@@ -153,6 +185,79 @@ function updateContainerSize(): void {
   }
 }
 
+/** Handle click on a sample card with modifier key support. */
+function onCardClick(id: string, event: MouseEvent): void {
+  if (event.shiftKey) {
+    // AC: Shift+click range select
+    store.rangeSelect(id)
+  } else if (event.ctrlKey || event.metaKey) {
+    // Ctrl/Cmd+click toggle selection
+    store.toggleSelect(id)
+  } else {
+    // Plain click: single select
+    store.selectSample(id)
+  }
+}
+
+/**
+ * Capture-phase keyboard handler (per DEVELOPMENT_PRACTICES §4.10).
+ * Handles all grid-level keyboard shortcuts.
+ */
+function onKeydown(event: KeyboardEvent): void {
+  // AC: Ctrl+A select all; Ctrl+Shift+A deselect
+  if ((event.ctrlKey || event.metaKey) && event.key === 'a') {
+    event.preventDefault()
+    if (event.shiftKey) {
+      store.clearSelection()
+    } else {
+      store.selectAll()
+    }
+    return
+  }
+
+  // AC: K=keep, R=reject on selected samples
+  if (event.key === 'k' || event.key === 'K') {
+    event.preventDefault()
+    store.applyStatus('kept')
+    return
+  }
+
+  if (event.key === 'r' || event.key === 'R') {
+    event.preventDefault()
+    store.applyStatus('rejected')
+    return
+  }
+
+  // Arrow left/right: navigate
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault()
+    store.moveFocus('prev')
+    return
+  }
+
+  if (event.key === 'ArrowRight') {
+    event.preventDefault()
+    store.moveFocus('next')
+    return
+  }
+
+  // Space: toggle selection on focused sample
+  if (event.key === ' ') {
+    event.preventDefault()
+    if (store.focusedId) {
+      store.toggleSelect(store.focusedId)
+    }
+    return
+  }
+
+  // Escape: clear selection
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    store.clearSelection()
+    return
+  }
+}
+
 let resizeObserver: ResizeObserver | null = null
 
 onMounted(() => {
@@ -197,6 +302,7 @@ watch(
   flex-direction: column;
   height: 100%;
   padding: 16px;
+  outline: none;
 }
 
 .sample-grid-header {
@@ -229,7 +335,22 @@ watch(
   overflow: hidden;
   position: relative;
   background: var(--n-color-embedded);
-  border: 1px solid var(--n-border-color);
+  border: 2px solid var(--n-border-color);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.sample-card:hover {
+  border-color: var(--n-primary-color-hover, #7fe7c4);
+}
+
+/* AC: Visual indicators for selection */
+.card-selected {
+  border-color: var(--n-primary-color, #63e2b7);
+}
+
+.card-focused {
+  border-color: var(--n-primary-color, #63e2b7);
 }
 
 .sample-grid-empty,
