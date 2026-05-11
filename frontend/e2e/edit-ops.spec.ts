@@ -29,22 +29,14 @@ test('PUT /v1/samples/{id}/edits returns 404 for non-existent sample', async ({ 
   expect(resp.status()).toBe(404)
 })
 
-// AC: GET /v1/samples/{id}/edits returns default edits for non-existent sample
+// AC: GET /v1/samples/{id}/edits returns 404 for non-existent sample
 test('GET /v1/samples/{id}/edits returns 404 for non-existent sample', async ({ request, baseURL }) => {
-  // The endpoint goes through the service which calls GetByID on the sample store.
-  // For a non-existent sample, it should not find the sample itself (before checking edits).
-  // However, GetEdit calls editStore.GetBySampleID which returns nil without error for missing edits.
-  // The endpoint does not verify sample existence on GET (it returns defaults).
-  // So GET for a non-existent sample returns 200 with defaults.
+  // GetEdit now validates sample existence via SampleReader.GetByID before checking edits.
+  // A non-existent sample should return 404.
   const resp = await request.get(
     `${backendURL(baseURL)}/v1/samples/00000000-0000-0000-0000-000000000000/edits`,
   )
-  expect(resp.status()).toBe(200)
-
-  const body = await resp.json()
-  expect(body).toHaveProperty('rotation_deg', 0)
-  expect(body).toHaveProperty('auto_actions')
-  expect(Array.isArray(body.auto_actions)).toBe(true)
+  expect(resp.status()).toBe(404)
 })
 
 // AC: PUT /v1/samples/{id}/edits validates sample ID format

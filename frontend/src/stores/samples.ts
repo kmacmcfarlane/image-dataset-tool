@@ -104,6 +104,12 @@ export const useSamplesStore = defineStore('samples', () => {
     }
     fetchComplete = false
     bufferedEvents = []
+
+    // Clear any pending edit debounce timers.
+    for (const timer of debounceTimers.values()) {
+      clearTimeout(timer)
+    }
+    debounceTimers.clear()
   }
 
   /** Connect to the SSE endpoint. */

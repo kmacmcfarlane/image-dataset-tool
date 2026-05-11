@@ -110,6 +110,15 @@ var _ = Describe("EditsHandler", func() {
 
 			Expect(w.Code).To(Equal(http.StatusBadRequest))
 		})
+
+		It("returns 404 for non-existent sample", func() {
+			req := httptest.NewRequest(http.MethodGet, "/v1/samples/00000000-0000-0000-0000-000000000000/edits", nil)
+			w := httptest.NewRecorder()
+
+			handler.ServeGetEdits(w, req)
+
+			Expect(w.Code).To(Equal(http.StatusNotFound))
+		})
 	})
 
 	Describe("ServePutEdits", func() {

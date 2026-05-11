@@ -10,19 +10,30 @@ import (
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/atomicfile"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/fileformat"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
-	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
 )
+
+// EditRepository defines the persistence interface for edits.
+type EditRepository interface {
+	GetBySampleID(sampleID string) (*model.Edit, error)
+	Upsert(edit *model.Edit) (*model.Edit, error)
+	DeleteBySampleID(sampleID string) error
+}
+
+// SampleReader defines a read-only interface for sample lookups used by EditService.
+type SampleReader interface {
+	GetByID(id string) (*model.Sample, error)
+}
 
 // EditService handles edit business logic.
 type EditService struct {
-	editStore   *store.EditStore
-	sampleStore *store.SampleStore
+	editStore   EditRepository
+	sampleStore SampleReader
 	dataDir     string
 	logger      *logrus.Entry
 }
 
 // NewEditService creates a new EditService.
-func NewEditService(editStore *store.EditStore, sampleStore *store.SampleStore, dataDir string) *EditService {
+func NewEditService(editStore EditRepository, sampleStore SampleReader, dataDir string) *EditService {
 	return &EditService{
 		editStore:   editStore,
 		sampleStore: sampleStore,
@@ -32,9 +43,15 @@ func NewEditService(editStore *store.EditStore, sampleStore *store.SampleStore, 
 }
 
 // GetEdit returns the edit for a sample, or nil if no edits exist.
+// Returns ErrNotFound (via SampleReader) if the sample itself does not exist.
 func (s *EditService) GetEdit(sampleID string) (*model.Edit, error) {
 	s.logger.WithField("sample_id", sampleID).Trace("entering GetEdit")
 	defer s.logger.Trace("returning from GetEdit")
+
+	// Verify sample exists before returning edits.
+	if _, err := s.sampleStore.GetByID(sampleID); err != nil {
+		return nil, fmt.Errorf("get sample: %w", err)
+	}
 
 	return s.editStore.GetBySampleID(sampleID)
 }
@@ -56,19 +73,20 @@ func (s *EditService) SaveEdit(edit *model.Edit) (*model.Edit, error) {
 		return s.ResetEdits(edit.SampleID)
 	}
 
-	// Step 1: Upsert DB row.
-	result, err := s.editStore.Upsert(edit)
-	if err != nil {
-		return nil, fmt.Errorf("upsert edit: %w", err)
-	}
-
-	// Step 2: Update manifest with file lock (PRD 11.1 rule 1+6).
-	if err := s.updateManifestEdits(sample, result); err != nil {
+	// Step 1: Update manifest first with file lock (PRD 11.1 rule 1: manifest before DB).
+	// If manifest succeeds but DB fails, reconciler recovers on restart.
+	if err := s.updateManifestEdits(sample, edit); err != nil {
 		s.logger.WithFields(logrus.Fields{
 			"sample_id": edit.SampleID,
 			"error":     err.Error(),
 		}).Error("failed to update manifest edits")
 		return nil, fmt.Errorf("update manifest: %w", err)
+	}
+
+	// Step 2: Upsert DB row.
+	result, err := s.editStore.Upsert(edit)
+	if err != nil {
+		return nil, fmt.Errorf("upsert edit: %w", err)
 	}
 
 	s.logger.WithField("sample_id", edit.SampleID).Info("edit saved")
@@ -86,12 +104,8 @@ func (s *EditService) ResetEdits(sampleID string) (*model.Edit, error) {
 		return nil, fmt.Errorf("get sample: %w", err)
 	}
 
-	// Step 1: Delete DB row.
-	if err := s.editStore.DeleteBySampleID(sampleID); err != nil {
-		return nil, fmt.Errorf("delete edit: %w", err)
-	}
-
-	// Step 2: Reset manifest edits to defaults with file lock.
+	// Step 1: Reset manifest edits to defaults first with file lock (PRD 11.1 rule 1: manifest before DB).
+	// If manifest succeeds but DB fails, reconciler recovers on restart.
 	defaultEdit := &model.Edit{
 		SampleID:        sampleID,
 		RotationDeg:     0,
@@ -104,6 +118,11 @@ func (s *EditService) ResetEdits(sampleID string) (*model.Edit, error) {
 			"error":     err.Error(),
 		}).Error("failed to reset manifest edits")
 		return nil, fmt.Errorf("reset manifest: %w", err)
+	}
+
+	// Step 2: Delete DB row.
+	if err := s.editStore.DeleteBySampleID(sampleID); err != nil {
+		return nil, fmt.Errorf("delete edit: %w", err)
 	}
 
 	s.logger.WithField("sample_id", sampleID).Info("edits reset to original")
