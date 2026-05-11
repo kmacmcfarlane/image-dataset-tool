@@ -149,6 +149,10 @@ func main() {
 	settingssvr.Mount(mux, settingsServer)
 
 	// Mount custom (non-Goa) handlers.
+	setupHandler := api.NewSetupHandler(dir)
+	mux.Handle("GET", "/api/setup/status", http.HandlerFunc(setupHandler.ServeStatus))
+	mux.Handle("POST", "/api/setup/generate-key", http.HandlerFunc(setupHandler.ServeGenerateKey))
+
 	mediaResolver := api.NewFileMediaResolver(dir)
 	mediaHandler := api.NewMediaHandler(mediaResolver)
 	mux.Handle("GET", "/v1/media/{sample_id}", http.HandlerFunc(mediaHandler.ServeImage))

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { bypassSetupWizard } from './helpers'
 
 /**
  * E2E tests for S-006: API server skeleton — health, SSE, docs endpoints.
@@ -104,6 +105,8 @@ test('GET /api/sse EventSource connects successfully via proxy', async ({ page, 
   const base = baseURL ?? 'http://frontend:3000'
 
   // Navigate to the app so we have a same-origin page context.
+  // Bypass setup wizard guard first so navigation is not intercepted.
+  await bypassSetupWizard(page)
   await page.goto(base)
 
   // Use EventSource (the native SSE API) which the browser supports natively.

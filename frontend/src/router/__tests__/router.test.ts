@@ -3,6 +3,7 @@ import router from '../index'
 
 describe('Router', () => {
   const expectedRoutes = [
+    { path: '/setup', name: 'setup' },
     { path: '/', name: 'projects' },
     { path: '/projects/:id', name: 'project-detail' },
     { path: '/projects/:id/subjects/:sid/samples', name: 'sample-grid' },

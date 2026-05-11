@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { bypassSetupWizard } from './helpers'
 
 /**
  * Account CRUD E2E tests.
@@ -6,6 +7,11 @@ import { test, expect } from '@playwright/test'
  * Prerequisites: dev stack must be running (make up-dev).
  * Run: make test-e2e SPEC=accounts.spec.ts
  */
+
+// Ensure the setup wizard guard does not intercept navigation in these tests.
+test.beforeEach(async ({ page }) => {
+  await bypassSetupWizard(page)
+})
 
 // AC: FE: /accounts view with list, add dialog (platform + handle + cookie textarea), delete
 test('accounts page loads with empty state or list', async ({ page }) => {

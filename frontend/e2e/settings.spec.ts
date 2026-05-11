@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { bypassSetupWizard } from './helpers'
 
 /**
  * Settings page E2E tests.
@@ -6,6 +7,11 @@ import { test, expect } from '@playwright/test'
  * Prerequisites: dev stack must be running (make up-dev).
  * Run: make test-e2e-serial SPEC=settings.spec.ts
  */
+
+// Ensure the setup wizard guard does not intercept navigation in these tests.
+test.beforeEach(async ({ page }) => {
+  await bypassSetupWizard(page)
+})
 
 // AC: /settings view loads and displays the page
 test('settings page loads', async ({ page }) => {
@@ -24,12 +30,12 @@ test('encryption key status is shown', async ({ page }) => {
   const keyStatusMissing = page.locator('[data-testid="key-status-missing"]')
   const keyStatusWrong = page.locator('[data-testid="key-status-wrong_permissions"]')
 
-  const anyVisible = await Promise.any([
+  const results = await Promise.all([
     keyStatusFound.isVisible(),
     keyStatusMissing.isVisible(),
     keyStatusWrong.isVisible(),
   ])
-  expect(anyVisible).toBe(true)
+  expect(results.some(v => v)).toBe(true)
 })
 
 // AC: Data dir path is displayed read-only

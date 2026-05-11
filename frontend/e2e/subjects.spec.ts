@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { bypassSetupWizard } from './helpers'
 
 /**
  * Subject CRUD E2E tests.
@@ -6,6 +7,11 @@ import { test, expect } from '@playwright/test'
  * Prerequisites: dev stack must be running (make up-dev).
  * Run: make test-e2e SPEC=subjects.spec.ts
  */
+
+// Ensure the setup wizard guard does not intercept navigation in these tests.
+test.beforeEach(async ({ page }) => {
+  await bypassSetupWizard(page)
+})
 
 // Helper: create a project and navigate to its detail page.
 async function createProjectAndNavigate(
