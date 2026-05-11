@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-011: Account management: CRUD social media accounts
+- Five Goa-designed account API endpoints: POST /v1/accounts (201, unique platform+handle), GET /v1/accounts (list, never returns cookies), GET /v1/accounts/{id} (detail with linked subjects), PUT /v1/accounts/{id}/cookies (AES-256-GCM encryption), DELETE /v1/accounts/{id} (cascades to subject_accounts links)
+- Cookies encrypted with AES-256-GCM before storage; never exposed in API responses, logs, or error messages
+- Backend AccountStore with encryption integration, AccountService with validation and normalization, Goa API layer
+- Frontend /accounts view with account card grid, create dialog (platform + handle + optional cookies textarea), update cookies dialog, delete confirmation
+- Pinia accounts store, API client module, full Ginkgo test coverage (store + service layers), Vitest store tests
+- Playwright E2E: CRUD round trip, cookie set/update flow, validation
+
 ### S-010: CRUD subjects within a project
 - Five Goa-designed subject API endpoints scoped under /v1/projects/{pid}/subjects: POST (201), GET list with sample counts, GET detail with linked accounts + sample stats, PUT (rename with directory rename on slug change), DELETE (soft/hard pattern matching projects)
 - Manifest-first write ordering per PRD 11.1: subject manifest.json + samples/ directory created atomically, then DB insert

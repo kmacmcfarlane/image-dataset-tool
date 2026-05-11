@@ -9,6 +9,8 @@ import (
 	logrus "github.com/sirupsen/logrus"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api"
+	genaccounts "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/accounts"
+	accountssvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/accounts/server"
 	health "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/health"
 	healthsvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/health/server"
 	genprojects "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/projects"
@@ -112,10 +114,15 @@ func main() {
 	subjectSvc := service.NewSubjectService(subjectStore, projectStore, dir)
 	subjectsAPISvc := api.NewSubjectsService(subjectSvc)
 
+	accountStore := store.NewAccountStore(db, encKey)
+	accountSvc := service.NewAccountService(accountStore)
+	accountsAPISvc := api.NewAccountsService(accountSvc)
+
 	// Create endpoints.
 	healthEndpoints := health.NewEndpoints(healthSvc)
 	projectsEndpoints := genprojects.NewEndpoints(projectsAPISvc)
 	subjectsEndpoints := gensubjects.NewEndpoints(subjectsAPISvc)
+	accountsEndpoints := genaccounts.NewEndpoints(accountsAPISvc)
 	queuesEndpoints := genqueues.NewEndpoints(queuesSvc)
 	settingsEndpoints := gensettings.NewEndpoints(settingsSvc)
 
@@ -131,6 +138,9 @@ func main() {
 
 	subjectsServer := subjectssvr.New(subjectsEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
 	subjectssvr.Mount(mux, subjectsServer)
+
+	accountsServer := accountssvr.New(accountsEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
+	accountssvr.Mount(mux, accountsServer)
 
 	queuesServer := queuessvr.New(queuesEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
 	queuessvr.Mount(mux, queuesServer)

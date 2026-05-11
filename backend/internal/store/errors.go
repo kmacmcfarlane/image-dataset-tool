@@ -7,8 +7,9 @@ import (
 
 // Sentinel errors for store operations.
 var (
-	ErrNotFound      = errors.New("not found")
-	ErrDuplicateSlug = errors.New("duplicate slug")
+	ErrNotFound         = errors.New("not found")
+	ErrDuplicateSlug    = errors.New("duplicate slug")
+	ErrDuplicateAccount = errors.New("duplicate account")
 )
 
 // isDuplicateConstraint checks if a SQLite error indicates a UNIQUE constraint violation.
