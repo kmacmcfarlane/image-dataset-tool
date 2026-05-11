@@ -10,27 +10,35 @@
       />
       <ToastContainer />
       <div class="app-body">
-        <AppSidebar />
-        <div class="app-main">
-          <BreadcrumbBar />
-          <div class="workspace-area">
-            <div class="workspace-content">
-              <router-view />
-            </div>
-            <RightPanel
-              :visible="rightPanelVisible"
-              @close="rightPanelVisible = false"
-            />
+        <template v-if="isSetupRoute">
+          <div class="setup-full">
+            <router-view />
           </div>
-          <StatusBar :connection-status="sseStatus" />
-        </div>
+        </template>
+        <template v-else>
+          <AppSidebar />
+          <div class="app-main">
+            <BreadcrumbBar />
+            <div class="workspace-area">
+              <div class="workspace-content">
+                <router-view />
+              </div>
+              <RightPanel
+                :visible="rightPanelVisible"
+                @close="rightPanelVisible = false"
+              />
+            </div>
+            <StatusBar :connection-status="sseStatus" />
+          </div>
+        </template>
       </div>
     </div>
   </n-config-provider>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { NConfigProvider } from 'naive-ui'
 import AppSidebar from './components/AppSidebar.vue'
 import BreadcrumbBar from './components/BreadcrumbBar.vue'
@@ -40,6 +48,9 @@ import ToastContainer from './components/ToastContainer.vue'
 import RightPanel from './components/RightPanel.vue'
 import { onApiError } from './api'
 import type { SSEConnectionStatus } from './types/sse'
+
+const route = useRoute()
+const isSetupRoute = computed(() => route.name === 'setup')
 
 const errorMessage = ref('')
 const rightPanelVisible = ref(false)
@@ -83,6 +94,8 @@ onUnmounted(() => {
   --toast-warning-text: #92400e;
   --toast-error-bg: #fef2f2;
   --toast-error-text: #991b1b;
+  --success-bg: #dcfce7;
+  --success-text: #15803d;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -109,6 +122,8 @@ onUnmounted(() => {
     --toast-warning-text: #fcd34d;
     --toast-error-bg: #450a0a;
     --toast-error-text: #fca5a5;
+    --success-bg: #14532d;
+    --success-text: #86efac;
   }
 }
 
@@ -142,6 +157,11 @@ html, body {
   display: flex;
   flex: 1;
   overflow: hidden;
+}
+
+.setup-full {
+  flex: 1;
+  overflow-y: auto;
 }
 
 .app-main {

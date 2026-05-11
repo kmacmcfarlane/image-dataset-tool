@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-008: Setup wizard — first-run flow
+- Backend: `GET /api/setup/status` returns data_dir path, data_dir_writable flag, and key_status (found/missing/wrong_permissions)
+- Backend: `POST /api/setup/generate-key` generates a 32-byte AES-256 key at `$DATA_DIR/secret.key` (mode 0600)
+- Backend: Ginkgo unit tests for SetupHandler covering all four review-requested scenarios
+- Frontend: 4-step setup wizard at `/setup` (data directory → encryption key → provider → complete)
+- Router navigation guard: redirects to `/setup` on first launch (localStorage flag `setup_wizard_complete` not set)
+- App layout: setup route renders full-screen without sidebar/breadcrumb/statusbar
+- Completing the wizard sets `setup_wizard_complete` in localStorage and redirects to `/`
+- CSS: replaced all hard-coded color values with canonical CSS variables (`--status-connected`, `--success-bg`, `--success-text`); added `--success-bg`/`--success-text` to App.vue :root and dark-mode overrides
+- Refactor: `SETUP_COMPLETE_KEY` constant extracted to `frontend/src/constants.ts` (shared by router and SetupWizardView)
+- Playwright E2E: 10 tests covering redirect logic, all 4 steps, full walk-through
+
 ### S-011: Account management: CRUD social media accounts
 - Five Goa-designed account API endpoints: POST /v1/accounts (201, unique platform+handle), GET /v1/accounts (list, never returns cookies), GET /v1/accounts/{id} (detail with linked subjects), PUT /v1/accounts/{id}/cookies (AES-256-GCM encryption), DELETE /v1/accounts/{id} (cascades to subject_accounts links)
 - Cookies encrypted with AES-256-GCM before storage; never exposed in API responses, logs, or error messages

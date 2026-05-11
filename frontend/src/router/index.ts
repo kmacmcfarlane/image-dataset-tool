@@ -1,8 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { SETUP_COMPLETE_KEY } from '../constants'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
+    {
+      path: '/setup',
+      name: 'setup',
+      component: () => import('../views/SetupWizardView.vue'),
+      meta: { breadcrumb: 'Setup', skipSetupGuard: true },
+    },
     {
       path: '/',
       name: 'projects',
@@ -64,6 +71,14 @@ const router = createRouter({
       meta: { breadcrumb: 'Settings' },
     },
   ],
+})
+
+// Navigation guard: redirect to /setup on first launch (until wizard is completed).
+router.beforeEach((to) => {
+  if (to.meta.skipSetupGuard) return true
+  const done = localStorage.getItem(SETUP_COMPLETE_KEY)
+  if (!done) return { name: 'setup' }
+  return true
 })
 
 export default router
