@@ -2,6 +2,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,14 +15,24 @@ import (
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
 )
 
+// ProjectRepository defines the persistence interface used by ProjectService.
+type ProjectRepository interface {
+	Create(p *model.Project) error
+	Get(id string) (*model.Project, error)
+	List() ([]*model.Project, error)
+	Update(id string, name *string, description *string) (*model.Project, error)
+	Delete(id string) error
+	SlugExists(slug string) (bool, error)
+}
+
 // ProjectService handles project business logic.
 type ProjectService struct {
-	store   *store.ProjectStore
+	store   ProjectRepository
 	dataDir string
 }
 
 // NewProjectService creates a new ProjectService.
-func NewProjectService(store *store.ProjectStore, dataDir string) *ProjectService {
+func NewProjectService(store ProjectRepository, dataDir string) *ProjectService {
 	return &ProjectService{store: store, dataDir: dataDir}
 }
 
@@ -102,6 +113,9 @@ func (s *ProjectService) Create(name, description string) (*model.Project, error
 func (s *ProjectService) Get(id string) (*model.Project, error) {
 	p, err := s.store.Get(id)
 	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, fmt.Errorf("project %q: %w", id, ErrNotFound)
+		}
 		return nil, err
 	}
 	return p, nil
@@ -115,11 +129,21 @@ func (s *ProjectService) List() ([]*model.Project, error) {
 // Update modifies project name and/or description.
 func (s *ProjectService) Update(id string, name *string, description *string) (*model.Project, error) {
 	if name == nil && description == nil {
-		return s.store.Get(id)
+		p, err := s.store.Get(id)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				return nil, fmt.Errorf("project %q: %w", id, ErrNotFound)
+			}
+			return nil, err
+		}
+		return p, nil
 	}
 
 	p, err := s.store.Update(id, name, description)
 	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, fmt.Errorf("project %q: %w", id, ErrNotFound)
+		}
 		return nil, err
 	}
 
@@ -146,11 +170,17 @@ func (s *ProjectService) Delete(id string, hardDelete bool) error {
 	// Get project to find slug for directory removal.
 	p, err := s.store.Get(id)
 	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return fmt.Errorf("project %q: %w", id, ErrNotFound)
+		}
 		return err
 	}
 
 	// Delete from DB (cascades to subjects etc.).
 	if err := s.store.Delete(id); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return fmt.Errorf("project %q: %w", id, ErrNotFound)
+		}
 		return err
 	}
 

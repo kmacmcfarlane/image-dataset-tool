@@ -232,11 +232,11 @@ function closeProjectDialog(): void {
   projectForm.value = { name: '', description: '' }
 }
 
-async function handleSaveProject(): Promise<void> {
+async function handleSaveProject(): Promise<boolean | void> {
   const { name, description } = projectForm.value
   if (!name.trim()) {
     toastStore.addToast('warning', 'Project name cannot be empty')
-    return
+    return false
   }
 
   try {

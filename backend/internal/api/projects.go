@@ -9,7 +9,6 @@ import (
 
 	projects "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/projects"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/service"
-	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
 )
 
 // ProjectsService implements the Goa projects service interface.
@@ -50,7 +49,7 @@ func (s *ProjectsService) List(_ context.Context) (*projects.ProjectListResult, 
 func (s *ProjectsService) Get(_ context.Context, p *projects.GetPayload) (*projects.ProjectDetail, error) {
 	proj, err := s.svc.Get(p.ID)
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
+		if errors.Is(err, service.ErrNotFound) {
 			return nil, projects.MakeNotFound(fmt.Errorf("project %q not found", p.ID))
 		}
 		return nil, fmt.Errorf("get project: %w", err)
@@ -71,7 +70,7 @@ func (s *ProjectsService) Get(_ context.Context, p *projects.GetPayload) (*proje
 func (s *ProjectsService) Create(_ context.Context, payload *projects.CreateProjectPayload) (*projects.ProjectResult, error) {
 	proj, err := s.svc.Create(payload.Name, payload.Description)
 	if err != nil {
-		if errors.Is(err, service.ErrConflict) || errors.Is(err, store.ErrDuplicateSlug) {
+		if errors.Is(err, service.ErrConflict) {
 			return nil, projects.MakeConflict(fmt.Errorf("a project with this slug already exists"))
 		}
 		if errors.Is(err, service.ErrBadRequest) {
@@ -94,7 +93,7 @@ func (s *ProjectsService) Create(_ context.Context, payload *projects.CreateProj
 func (s *ProjectsService) Update(_ context.Context, payload *projects.UpdateProjectPayload) (*projects.ProjectResult, error) {
 	proj, err := s.svc.Update(payload.ID, payload.Name, payload.Description)
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
+		if errors.Is(err, service.ErrNotFound) {
 			return nil, projects.MakeNotFound(fmt.Errorf("project %q not found", payload.ID))
 		}
 		if errors.Is(err, service.ErrBadRequest) {
@@ -117,7 +116,7 @@ func (s *ProjectsService) Update(_ context.Context, payload *projects.UpdateProj
 func (s *ProjectsService) Delete(_ context.Context, payload *projects.DeletePayload) error {
 	err := s.svc.Delete(payload.ID, payload.HardDelete)
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
+		if errors.Is(err, service.ErrNotFound) {
 			return projects.MakeNotFound(fmt.Errorf("project %q not found", payload.ID))
 		}
 		return fmt.Errorf("delete project: %w", err)
