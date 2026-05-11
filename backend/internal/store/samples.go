@@ -148,7 +148,7 @@ func (s *SampleStore) BulkUpdateStatus(ids []string, status string) (int64, erro
 
 	// Build placeholders for IN clause.
 	placeholders := make([]string, len(ids))
-	args := make([]interface{}, 0, len(ids)+2)
+	args := make([]any, 0, len(ids)+2)
 	args = append(args, status, now)
 	for i, id := range ids {
 		placeholders[i] = "?"

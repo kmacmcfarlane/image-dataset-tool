@@ -5,14 +5,9 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 ### S-018: Keep/reject + multi-select + bulk actions
-- `PUT /v1/samples/{id}/status` updates single sample status; `PUT /v1/samples/bulk-status` performs atomic batch update with transaction
-- SampleStore: added `GetByID`, `UpdateStatus`, `BulkUpdateStatus` methods with status validation (pending/kept/rejected)
-- Frontend samples store: selection state (single click, Ctrl+click toggle, Shift+click range, Ctrl+A select all, Ctrl+Shift+A deselect, Escape clear)
-- Keyboard-driven keep (K) and reject (R) with optimistic UI update and auto-advance to next sample
-- Auto-advance: single selection advances to next; multi-selection advances to sample after last in selection
-- Visual indicators: green border (kept), red border (rejected), primary color selection highlight, checkmark overlay
-- Status is fully reversible between pending/kept/rejected at any time
-- 5 E2E tests covering API validation, bulk status, and grid view rendering
+- Two new API endpoints: `PUT /v1/samples/{id}/status` (single) and `PUT /v1/samples/bulk-status` (atomic batch with transaction)
+- Keyboard-driven review: K=keep, R=reject with optimistic update and auto-advance; Shift+click range select; Ctrl+A/Ctrl+Shift+A select/deselect all
+- Visual status indicators (green=kept, red=rejected) and selection highlighting with checkmark overlay
 
 ### S-025: Research spike: vision model captioning evaluation
 - Added `docs/captioning-spike.md` — comprehensive recommendation document for vision model captioning providers
