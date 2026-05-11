@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-010: CRUD subjects within a project
+- Five Goa-designed subject API endpoints scoped under /v1/projects/{pid}/subjects: POST (201), GET list with sample counts, GET detail with linked accounts + sample stats, PUT (rename with directory rename on slug change), DELETE (soft/hard pattern matching projects)
+- Manifest-first write ordering per PRD 11.1: subject manifest.json + samples/ directory created atomically, then DB insert
+- Slug uniqueness enforced per-project (same slug allowed in different projects); same validation rules as projects (max 64, filesystem-safe)
+- Frontend ProjectDetailView at /projects/:id with subject card grid, sample count badges, create/edit/delete dialogs with context menus
+- Pinia subjects store, API client module, backend SubjectStore and SubjectService with full Ginkgo test coverage (cascade delete to samples/edits/captions, sample stats aggregation, cross-project isolation)
+- Playwright E2E: full CRUD round trip with rename, empty name validation, hard delete
+
 ### S-009: CRUD projects: API + manifests + frontend
 - Five Goa-designed project API endpoints: POST /v1/projects (201), GET /v1/projects, GET /v1/projects/{id} (with subject count), PUT /v1/projects/{id}, DELETE /v1/projects/{id} (soft/hard delete via hard_delete query param)
 - Auto-generated slugs (lowercase, hyphens, max 64 chars) from project name; immutable after creation; 409 on duplicate

@@ -17,6 +17,8 @@ import (
 	queuessvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/queues/server"
 	gensettings "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/settings"
 	settingssvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/settings/server"
+	gensubjects "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/subjects"
+	subjectssvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/subjects/server"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/crypto"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/datadir"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/natsutil"
@@ -106,9 +108,14 @@ func main() {
 	projectSvc := service.NewProjectService(projectStore, dir)
 	projectsAPISvc := api.NewProjectsService(projectSvc)
 
+	subjectStore := store.NewSubjectStore(db)
+	subjectSvc := service.NewSubjectService(subjectStore, projectStore, dir)
+	subjectsAPISvc := api.NewSubjectsService(subjectSvc)
+
 	// Create endpoints.
 	healthEndpoints := health.NewEndpoints(healthSvc)
 	projectsEndpoints := genprojects.NewEndpoints(projectsAPISvc)
+	subjectsEndpoints := gensubjects.NewEndpoints(subjectsAPISvc)
 	queuesEndpoints := genqueues.NewEndpoints(queuesSvc)
 	settingsEndpoints := gensettings.NewEndpoints(settingsSvc)
 
@@ -121,6 +128,9 @@ func main() {
 
 	projectsServer := projectssvr.New(projectsEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
 	projectssvr.Mount(mux, projectsServer)
+
+	subjectsServer := subjectssvr.New(subjectsEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
+	subjectssvr.Mount(mux, subjectsServer)
 
 	queuesServer := queuessvr.New(queuesEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
 	queuessvr.Mount(mux, queuesServer)
