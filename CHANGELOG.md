@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-006: API server skeleton: Goa design, structured logging, SSE, media serving, Swagger
+- Enhanced health endpoint (GET /health) with per-subsystem status: SQLite, NATS, $DATA_DIR writable, encryption key; returns 200/503 with detail map
+- SSE endpoint (GET /api/sse) with in-memory ring buffer and Last-Event-ID reconnection replay; wired to existing ChannelEventSink pipeline
+- Media serving (GET /v1/media/{sample_id}) with correct Content-Type from extension; thumbnail endpoint (GET /v1/media/{sample_id}/thumb) with on-demand JPEG regeneration
+- Swagger UI at GET /docs with OpenAPI 3 spec at /docs/openapi3.json
+- CORS middleware for frontend dev origin (localhost:3000, configurable via CORS_ORIGIN)
+- Error middleware catches panics and returns ErrorWithCode JSON; request logging middleware with full detail at debug level
+- Structured JSON logging via logrus with LOG_LEVEL env var support
+
 ### S-038: Settings UI: secrets, providers, config display
 - New `/settings` view with secrets CRUD (AES-256-GCM encrypted at rest, values never returned in list API), encryption key status, data dir display, provider test buttons, and full `config.yaml` accordion
 - Five new API endpoints under `/v1/settings/` with Goa DSL design; `SecretsStore` in store layer

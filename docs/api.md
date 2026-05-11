@@ -49,9 +49,14 @@ The API is organized into Goa services, each mapping to a resource domain:
 
 | Service     | Base Path    | Purpose                             |
 |-------------|--------------|-------------------------------------|
-| health      | /health      | Health check (e.g., for monitoring) |
-| docs        | /docs        | Swagger UI and OpenAPI spec         |
-| ...         | /...         | ETC...                              |
+| health      | /health      | Health check with subsystem status   |
+| queues      | /v1/queues   | NATS JetStream queue admin           |
+| settings    | /v1/settings | Secrets, config, provider testing    |
+| media*      | /v1/media    | Raw image and thumbnail serving      |
+| sse*        | /api/sse     | Server-sent events stream            |
+| docs*       | /docs        | Swagger UI and OpenAPI spec          |
+
+*Custom HTTP handlers (not Goa-generated) for non-JSON content types.
 
 Each service corresponds to a file in the design package (e.g., `items.go`, `users.go`).
 
@@ -123,10 +128,27 @@ Goa maps service errors to HTTP status codes in the design DSL. General conventi
 
 ## 7) CORS
 
-- CORS is configured in the API design DSL.
-- Allows requests from the frontend origin.
+- CORS is configured via `CORSMiddleware` in `internal/api/middleware.go`.
+- Default origin: `http://localhost:3000` (override via `CORS_ORIGIN` env var).
 - Supported methods: GET, POST, PUT, DELETE, OPTIONS.
-- Credentials are allowed (for cookie-based session tokens if used).
+- Credentials are allowed.
+- Preflight (OPTIONS) returns 204 with appropriate headers.
+
+## 7.1) Middleware stack
+
+Applied in order (outermost first):
+1. **CORSMiddleware** — CORS headers and OPTIONS preflight handling
+2. **ErrorMiddleware** — Panic recovery, returns `ErrorWithCode` JSON
+3. **RequestLoggingMiddleware** — Structured request logging; full detail at `LOG_LEVEL=debug`
+
+## 7.2) SSE (Server-Sent Events)
+
+- Endpoint: `GET /api/sse`
+- Content-Type: `text/event-stream`
+- Each event has a monotonically increasing `id` field
+- Reconnection: send `Last-Event-ID` header to replay missed events from the in-memory ring buffer (capacity: 1024 events)
+- Events are sourced from the pipeline `ChannelEventSink` (wired in `main.go`)
+- Event types match PRD section 5.5 (job.state, job.progress, consumer.stats, etc.)
 
 ## 8) Content types
 

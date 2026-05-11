@@ -91,6 +91,21 @@ func (s *Server) Conn() *nats.Conn {
 	return s.nc
 }
 
+// CheckNATS returns nil if the embedded server is running and JetStream is available.
+func (s *Server) CheckNATS() error {
+	if s.ns == nil || !s.ns.Running() {
+		return fmt.Errorf("NATS server is not running")
+	}
+	if !s.ns.JetStreamEnabled() {
+		return fmt.Errorf("JetStream is not enabled")
+	}
+	// Verify the in-process client connection is still alive.
+	if s.nc == nil || !s.nc.IsConnected() {
+		return fmt.Errorf("NATS client connection is not available")
+	}
+	return nil
+}
+
 // Shutdown gracefully stops the NATS server, draining the connection first.
 func (s *Server) Shutdown() {
 	log := logrus.WithField("component", "nats")

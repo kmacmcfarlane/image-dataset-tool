@@ -18,12 +18,16 @@ import (
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/crypto"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/datadir"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/natsutil"
+	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/pipeline"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/reconciler"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
 	goahttp "goa.design/goa/v3/http"
 )
 
 func main() {
+	// Configure structured JSON logging first.
+	api.ConfigureLogging()
+
 	// --- Startup initialization ---
 
 	// 1. Bootstrap data directory (creates dirs if missing, resolves path).
@@ -69,6 +73,12 @@ func main() {
 	}
 	defer natsSrv.Shutdown()
 
+	// --- SSE infrastructure ---
+	sink := pipeline.NewChannelEventSink(256)
+	ring := api.NewSSERingBuffer(1024)
+	sseHandler := api.NewSSEHandler(sink, ring)
+	go sseHandler.StartBroadcast()
+
 	// --- HTTP server ---
 
 	port := os.Getenv("PORT")
@@ -83,37 +93,52 @@ func main() {
 		cfg = map[string]any{}
 	}
 
-	// Create service implementations
-	healthSvc := api.NewHealthService()
+	// Create service implementations.
+	healthSvc := api.NewHealthService(db, natsSrv, dir, keyPath)
 	queuesSvc := api.NewQueuesService(natsSrv.JS())
 	secretsStore := store.NewSecretsStore(db, encKey)
 	settingsSvc := api.NewSettingsService(secretsStore, dir, cfg)
 
-	// Create endpoints
+	// Create endpoints.
 	healthEndpoints := health.NewEndpoints(healthSvc)
 	queuesEndpoints := genqueues.NewEndpoints(queuesSvc)
 	settingsEndpoints := gensettings.NewEndpoints(settingsSvc)
 
-	// Create HTTP mux
+	// Create HTTP mux.
 	mux := goahttp.NewMuxer()
 
-	// Create and mount health server
+	// Create and mount Goa-generated servers.
 	healthServer := healthsvr.New(healthEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
 	healthsvr.Mount(mux, healthServer)
 
-	// Create and mount queues server
 	queuesServer := queuessvr.New(queuesEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
 	queuessvr.Mount(mux, queuesServer)
 
-	// Create and mount settings server
 	settingsServer := settingssvr.New(settingsEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
 	settingssvr.Mount(mux, settingsServer)
 
-	// Create HTTP server
+	// Mount custom (non-Goa) handlers.
+	mediaResolver := api.NewFileMediaResolver(dir)
+	mediaHandler := api.NewMediaHandler(mediaResolver)
+	mux.Handle("GET", "/v1/media/{sample_id}", http.HandlerFunc(mediaHandler.ServeImage))
+	mux.Handle("GET", "/v1/media/{sample_id}/thumb", http.HandlerFunc(mediaHandler.ServeThumbnail))
+
+	mux.Handle("GET", "/api/sse", http.HandlerFunc(sseHandler.ServeHTTP))
+
+	mux.Handle("GET", "/docs", api.DocsHandler())
+	mux.Handle("GET", "/docs/openapi3.json", api.DocsSpecHandler())
+
+	// Apply middleware stack: outermost first.
+	var handler http.Handler = mux
+	handler = api.RequestLoggingMiddleware(handler)
+	handler = api.ErrorMiddleware(handler)
+	handler = api.CORSMiddleware(handler)
+
+	// Create HTTP server.
 	addr := fmt.Sprintf(":%s", port)
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: mux,
+		Handler: handler,
 	}
 
 	logrus.Infof("Starting server on %s", addr)
