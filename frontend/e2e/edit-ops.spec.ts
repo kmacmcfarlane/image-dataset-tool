@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { bypassSetupWizard } from './helpers'
 
 /**
  * E2E tests for S-019: Edit-ops persistence infrastructure.
@@ -83,4 +84,40 @@ test('PUT /v1/samples/{id}/edits rejects malformed JSON', async ({ request, base
     },
   )
   expect(resp.status()).toBe(400)
+})
+
+// AC: FE: Reset button clears all edits and saves immediately
+// (UI acceptance: Reset Edits button is present in the sample grid toolbar
+// and is disabled when no sample is focused.)
+test('Reset Edits button is present and disabled when no sample focused', async ({ page, baseURL }) => {
+  const base = baseURL ?? 'http://frontend:3000'
+  const backend = backendURL(baseURL)
+  await bypassSetupWizard(page)
+
+  const suffix = Date.now().toString(36)
+
+  // Create a project and subject via API for a valid route.
+  const projectResp = await page.request.post(`${backend}/v1/projects`, {
+    data: { name: `Edit UI Test ${suffix}`, description: 'test' },
+  })
+  expect(projectResp.status()).toBe(201)
+  const project = await projectResp.json()
+
+  const subjectResp = await page.request.post(
+    `${backend}/v1/projects/${project.id}/subjects`,
+    { data: { name: `Edit Subject ${suffix}` } },
+  )
+  expect(subjectResp.status()).toBe(201)
+  const subject = await subjectResp.json()
+
+  // Navigate to sample grid view.
+  await page.goto(`${base}/projects/${project.id}/subjects/${subject.id}/samples`)
+  await expect(page.locator('[data-testid="view-sample-grid"]')).toBeVisible()
+
+  // Reset Edits button must be visible.
+  const resetBtn = page.locator('[data-testid="reset-edits-btn"]')
+  await expect(resetBtn).toBeVisible()
+
+  // Button is disabled when no sample is focused (focusedId is null).
+  await expect(resetBtn).toBeDisabled()
 })
