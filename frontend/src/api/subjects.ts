@@ -89,3 +89,45 @@ export function deleteSubject(
     { method: 'DELETE' },
   )
 }
+
+export interface SubjectLinkedAccountListResult {
+  accounts: SubjectLinkedAccount[]
+}
+
+export interface LinkAccountPayload {
+  account_id: string
+}
+
+/** Link an existing account to a subject. */
+export function linkAccount(
+  projectId: string,
+  subjectId: string,
+  accountId: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/v1/projects/${encodeURIComponent(projectId)}/subjects/${encodeURIComponent(subjectId)}/accounts`,
+    { method: 'POST', body: { account_id: accountId } },
+  )
+}
+
+/** List accounts linked to a subject. */
+export function listLinkedAccounts(
+  projectId: string,
+  subjectId: string,
+): Promise<SubjectLinkedAccountListResult> {
+  return apiFetch<SubjectLinkedAccountListResult>(
+    `/v1/projects/${encodeURIComponent(projectId)}/subjects/${encodeURIComponent(subjectId)}/accounts`,
+  )
+}
+
+/** Unlink an account from a subject (removes join row only). */
+export function unlinkAccount(
+  projectId: string,
+  subjectId: string,
+  accountId: string,
+): Promise<void> {
+  return apiFetch<void>(
+    `/v1/projects/${encodeURIComponent(projectId)}/subjects/${encodeURIComponent(subjectId)}/accounts/${encodeURIComponent(accountId)}`,
+    { method: 'DELETE' },
+  )
+}

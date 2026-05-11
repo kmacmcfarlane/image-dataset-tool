@@ -150,3 +150,56 @@ func (s *SubjectsService) Delete(_ context.Context, payload *subjects.DeletePayl
 	}
 	return nil
 }
+
+// LinkAccount links an existing account to a subject.
+func (s *SubjectsService) LinkAccount(_ context.Context, payload *subjects.LinkAccountPayload) error {
+	err := s.svc.LinkAccount(payload.ProjectID, payload.ID, payload.AccountID)
+	if err != nil {
+		if errors.Is(err, service.ErrNotFound) {
+			return subjects.MakeNotFound(fmt.Errorf("subject or account not found"))
+		}
+		if errors.Is(err, service.ErrConflict) {
+			return subjects.MakeConflict(fmt.Errorf("account already linked to this subject"))
+		}
+		logrus.WithError(err).Error("Failed to link account to subject")
+		return fmt.Errorf("link account: %w", err)
+	}
+	return nil
+}
+
+// ListLinkedAccounts returns accounts linked to a subject.
+func (s *SubjectsService) ListLinkedAccounts(_ context.Context, payload *subjects.ListLinkedAccountsPayload) (*subjects.SubjectLinkedAccountListResult, error) {
+	accounts, err := s.svc.ListLinkedAccounts(payload.ProjectID, payload.ID)
+	if err != nil {
+		if errors.Is(err, service.ErrNotFound) {
+			return nil, subjects.MakeNotFound(fmt.Errorf("subject %q not found", payload.ID))
+		}
+		logrus.WithError(err).Error("Failed to list linked accounts")
+		return nil, fmt.Errorf("list linked accounts: %w", err)
+	}
+
+	result := &subjects.SubjectLinkedAccountListResult{
+		Accounts: make([]*subjects.SubjectLinkedAccount, 0, len(accounts)),
+	}
+	for _, a := range accounts {
+		result.Accounts = append(result.Accounts, &subjects.SubjectLinkedAccount{
+			ID:       a.ID,
+			Platform: a.Platform,
+			Handle:   a.Handle,
+		})
+	}
+	return result, nil
+}
+
+// UnlinkAccount removes the link between a subject and an account.
+func (s *SubjectsService) UnlinkAccount(_ context.Context, payload *subjects.UnlinkAccountPayload) error {
+	err := s.svc.UnlinkAccount(payload.ProjectID, payload.ID, payload.AccountID)
+	if err != nil {
+		if errors.Is(err, service.ErrNotFound) {
+			return subjects.MakeNotFound(fmt.Errorf("link not found"))
+		}
+		logrus.WithError(err).Error("Failed to unlink account from subject")
+		return fmt.Errorf("unlink account: %w", err)
+	}
+	return nil
+}

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-012: Link accounts to subjects (many-to-many)
+- Three new Goa-designed API endpoints under `/v1/projects/{pid}/subjects/{sid}/accounts`: POST (link account by account_id), GET (list linked accounts), DELETE /{aid} (unlink join row only, never deletes account)
+- SubjectStore: added `LinkAccount`, `UnlinkAccount`, `ListLinkedAccounts` store methods with FK/duplicate constraint handling
+- SubjectService: added `LinkAccount`, `UnlinkAccount`, `ListLinkedAccounts` service methods with project scoping validation
+- Frontend ProjectDetailView: "Link account" context menu option per subject opens a picker dialog; shows currently linked accounts with individual Unlink buttons; picker filters out already-linked accounts; "Manage accounts" link navigates to /accounts
+- Frontend API client: `linkAccount`, `unlinkAccount`, `listLinkedAccounts` functions added to `subjects.ts`
+- Backend tests: store-level and service-level Ginkgo tests covering link, unlink, duplicate link, multi-subject linking, and cascade validation
+- Playwright E2E: link/list/unlink round trip, same account linked to multiple subjects, unlink-without-delete verification, navigate-to-accounts link
+
 ### S-008: Setup wizard — first-run flow
 - 4-step first-run wizard at `/setup`: data directory validation, encryption key generation, optional provider API key, completion redirect
 - Router navigation guard redirects all routes to `/setup` until wizard completes (localStorage flag)

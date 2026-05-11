@@ -22,6 +22,9 @@ type SubjectRepository interface {
 	Update(id string, name string, slug string) (*model.Subject, error)
 	Delete(id string) error
 	SlugExistsInProject(projectID, slug string) (bool, error)
+	LinkAccount(subjectID, accountID string) error
+	UnlinkAccount(subjectID, accountID string) error
+	ListLinkedAccounts(subjectID string) ([]model.LinkedAccount, error)
 }
 
 // SubjectService handles subject business logic.
@@ -240,6 +243,81 @@ func (s *SubjectService) Update(projectID, id string, name *string) (*model.Subj
 	}
 
 	return sub, nil
+}
+
+// LinkAccount links an existing account to a subject.
+func (s *SubjectService) LinkAccount(projectID, subjectID, accountID string) error {
+	sub, err := s.store.Get(subjectID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return fmt.Errorf("subject %q: %w", subjectID, ErrNotFound)
+		}
+		return err
+	}
+	if sub.ProjectID != projectID {
+		return fmt.Errorf("subject %q: %w", subjectID, ErrNotFound)
+	}
+
+	if err := s.store.LinkAccount(subjectID, accountID); err != nil {
+		if errors.Is(err, store.ErrDuplicateLink) {
+			return fmt.Errorf("account %q already linked: %w", accountID, ErrConflict)
+		}
+		if errors.Is(err, store.ErrNotFound) {
+			return fmt.Errorf("account %q: %w", accountID, ErrNotFound)
+		}
+		return fmt.Errorf("link account: %w", err)
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"subject_id": subjectID,
+		"account_id": accountID,
+	}).Info("Account linked to subject")
+
+	return nil
+}
+
+// UnlinkAccount removes the link between an account and a subject.
+func (s *SubjectService) UnlinkAccount(projectID, subjectID, accountID string) error {
+	sub, err := s.store.Get(subjectID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return fmt.Errorf("subject %q: %w", subjectID, ErrNotFound)
+		}
+		return err
+	}
+	if sub.ProjectID != projectID {
+		return fmt.Errorf("subject %q: %w", subjectID, ErrNotFound)
+	}
+
+	if err := s.store.UnlinkAccount(subjectID, accountID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return fmt.Errorf("link (subject=%q, account=%q): %w", subjectID, accountID, ErrNotFound)
+		}
+		return fmt.Errorf("unlink account: %w", err)
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"subject_id": subjectID,
+		"account_id": accountID,
+	}).Info("Account unlinked from subject")
+
+	return nil
+}
+
+// ListLinkedAccounts returns accounts linked to a subject.
+func (s *SubjectService) ListLinkedAccounts(projectID, subjectID string) ([]model.LinkedAccount, error) {
+	sub, err := s.store.Get(subjectID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, fmt.Errorf("subject %q: %w", subjectID, ErrNotFound)
+		}
+		return nil, err
+	}
+	if sub.ProjectID != projectID {
+		return nil, fmt.Errorf("subject %q: %w", subjectID, ErrNotFound)
+	}
+
+	return s.store.ListLinkedAccounts(subjectID)
 }
 
 // Delete removes a subject. If hardDelete is true, the directory is also removed.

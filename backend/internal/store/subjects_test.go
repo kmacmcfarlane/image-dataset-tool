@@ -325,6 +325,104 @@ var _ = Describe("SubjectStore", func() {
 		})
 	})
 
+	Describe("LinkAccount / UnlinkAccount / ListLinkedAccounts", func() {
+		createAccount := func(id, handle string) {
+			_, err := db.Exec(`INSERT INTO accounts (id, platform, handle, created_at, updated_at)
+				VALUES (?, 'instagram', ?, '2026-01-01', '2026-01-01')`, id, handle)
+			Expect(err).NotTo(HaveOccurred())
+		}
+
+		It("links an account and lists it", func() {
+			createProject("p1", "proj-1")
+			sub := &model.Subject{ID: "link-s1", ProjectID: "p1", Slug: "lnk-sub", Name: "LinkSub"}
+			Expect(ss.Create(sub)).To(Succeed())
+			createAccount("link-a1", "user1")
+
+			Expect(ss.LinkAccount("link-s1", "link-a1")).To(Succeed())
+
+			accounts, err := ss.ListLinkedAccounts("link-s1")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(accounts).To(HaveLen(1))
+			Expect(accounts[0].ID).To(Equal("link-a1"))
+			Expect(accounts[0].Handle).To(Equal("user1"))
+		})
+
+		It("returns ErrDuplicateLink when linking same account twice", func() {
+			createProject("p1", "proj-1")
+			sub := &model.Subject{ID: "link-s2", ProjectID: "p1", Slug: "lnk-sub2", Name: "LinkSub2"}
+			Expect(ss.Create(sub)).To(Succeed())
+			createAccount("link-a2", "user2")
+
+			Expect(ss.LinkAccount("link-s2", "link-a2")).To(Succeed())
+
+			err := ss.LinkAccount("link-s2", "link-a2")
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(MatchError(ContainSubstring("already linked")))
+		})
+
+		It("returns ErrNotFound when linking non-existent account", func() {
+			createProject("p1", "proj-1")
+			sub := &model.Subject{ID: "link-s3", ProjectID: "p1", Slug: "lnk-sub3", Name: "LinkSub3"}
+			Expect(ss.Create(sub)).To(Succeed())
+
+			err := ss.LinkAccount("link-s3", "nonexistent-account")
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(MatchError(ContainSubstring("not found")))
+		})
+
+		It("allows linking same account to multiple subjects", func() {
+			createProject("p1", "proj-1")
+			s1 := &model.Subject{ID: "multi-s1", ProjectID: "p1", Slug: "multi-sub1", Name: "Multi1"}
+			s2 := &model.Subject{ID: "multi-s2", ProjectID: "p1", Slug: "multi-sub2", Name: "Multi2"}
+			Expect(ss.Create(s1)).To(Succeed())
+			Expect(ss.Create(s2)).To(Succeed())
+			createAccount("multi-a1", "shareduser")
+
+			Expect(ss.LinkAccount("multi-s1", "multi-a1")).To(Succeed())
+			Expect(ss.LinkAccount("multi-s2", "multi-a1")).To(Succeed())
+
+			a1, err := ss.ListLinkedAccounts("multi-s1")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(a1).To(HaveLen(1))
+
+			a2, err := ss.ListLinkedAccounts("multi-s2")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(a2).To(HaveLen(1))
+		})
+
+		It("unlinks an account without deleting it", func() {
+			createProject("p1", "proj-1")
+			sub := &model.Subject{ID: "unlink-s1", ProjectID: "p1", Slug: "unlnk-sub", Name: "UnlinkSub"}
+			Expect(ss.Create(sub)).To(Succeed())
+			createAccount("unlink-a1", "unlink-user")
+
+			Expect(ss.LinkAccount("unlink-s1", "unlink-a1")).To(Succeed())
+			Expect(ss.UnlinkAccount("unlink-s1", "unlink-a1")).To(Succeed())
+
+			// Account still exists.
+			var count int
+			err := db.QueryRow("SELECT COUNT(*) FROM accounts WHERE id = 'unlink-a1'").Scan(&count)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(count).To(Equal(1))
+
+			// But the link is gone.
+			accounts, err := ss.ListLinkedAccounts("unlink-s1")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(accounts).To(BeEmpty())
+		})
+
+		It("returns ErrNotFound when unlinking a non-existent link", func() {
+			createProject("p1", "proj-1")
+			sub := &model.Subject{ID: "unlink-s2", ProjectID: "p1", Slug: "unlnk-sub2", Name: "UnlinkSub2"}
+			Expect(ss.Create(sub)).To(Succeed())
+			createAccount("unlink-a2", "unlink-user2")
+
+			err := ss.UnlinkAccount("unlink-s2", "unlink-a2")
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(MatchError(ContainSubstring("not found")))
+		})
+	})
+
 	Describe("SlugExistsInProject", func() {
 		It("returns false for non-existent slug", func() {
 			createProject("p1", "proj-1")

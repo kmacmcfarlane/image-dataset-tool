@@ -96,6 +96,59 @@ var _ = Service("subjects", func() {
 			Response("not_found", StatusNotFound)
 		})
 	})
+
+	Method("link_account", func() {
+		Description("Link an existing account to a subject")
+		Payload(func() {
+			Attribute("project_id", String, "Project ID (UUID)")
+			Attribute("id", String, "Subject ID (UUID)")
+			Attribute("account_id", String, "Account ID (UUID) to link")
+			Required("project_id", "id", "account_id")
+		})
+		Error("not_found", ErrorResult, "Subject or account not found")
+		Error("conflict", ErrorResult, "Account already linked to this subject")
+		HTTP(func() {
+			POST("/v1/projects/{project_id}/subjects/{id}/accounts")
+			Body(func() {
+				Attribute("account_id")
+			})
+			Response(StatusNoContent)
+			Response("not_found", StatusNotFound)
+			Response("conflict", StatusConflict)
+		})
+	})
+
+	Method("list_linked_accounts", func() {
+		Description("List accounts linked to a subject")
+		Payload(func() {
+			Attribute("project_id", String, "Project ID (UUID)")
+			Attribute("id", String, "Subject ID (UUID)")
+			Required("project_id", "id")
+		})
+		Result(SubjectLinkedAccountListResult)
+		Error("not_found", ErrorResult, "Subject not found")
+		HTTP(func() {
+			GET("/v1/projects/{project_id}/subjects/{id}/accounts")
+			Response(StatusOK)
+			Response("not_found", StatusNotFound)
+		})
+	})
+
+	Method("unlink_account", func() {
+		Description("Unlink an account from a subject (removes join row only)")
+		Payload(func() {
+			Attribute("project_id", String, "Project ID (UUID)")
+			Attribute("id", String, "Subject ID (UUID)")
+			Attribute("account_id", String, "Account ID (UUID) to unlink")
+			Required("project_id", "id", "account_id")
+		})
+		Error("not_found", ErrorResult, "Link not found")
+		HTTP(func() {
+			DELETE("/v1/projects/{project_id}/subjects/{id}/accounts/{account_id}")
+			Response(StatusNoContent)
+			Response("not_found", StatusNotFound)
+		})
+	})
 })
 
 var SubjectResult = Type("SubjectResult", func() {
@@ -136,6 +189,12 @@ var SubjectSampleStats = Type("SubjectSampleStats", func() {
 	Attribute("rejected", Int, "Samples with rejected status")
 	Attribute("total", Int, "Total sample count")
 	Required("pending", "kept", "rejected", "total")
+})
+
+var SubjectLinkedAccountListResult = Type("SubjectLinkedAccountListResult", func() {
+	Description("List of accounts linked to a subject")
+	Attribute("accounts", ArrayOf(SubjectLinkedAccount), "Linked accounts")
+	Required("accounts")
 })
 
 var SubjectListResult = Type("SubjectListResult", func() {

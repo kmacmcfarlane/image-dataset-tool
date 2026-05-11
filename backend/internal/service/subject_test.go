@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"database/sql"
 	"os"
 	"path/filepath"
 
@@ -14,8 +15,10 @@ import (
 var _ = Describe("SubjectService", func() {
 	var (
 		tmpDir     string
+		db         *sql.DB
 		svc        *service.SubjectService
 		projectSvc *service.ProjectService
+		accountSvc *service.AccountService
 		cleanup    func()
 	)
 
@@ -28,16 +31,19 @@ var _ = Describe("SubjectService", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		dbPath := filepath.Join(tmpDir, "test.sqlite")
-		db, err := store.OpenDB(dbPath)
-		Expect(err).NotTo(HaveOccurred())
+		var err2 error
+		db, err2 = store.OpenDB(dbPath)
+		Expect(err2).NotTo(HaveOccurred())
 
-		err = store.Migrate(db)
-		Expect(err).NotTo(HaveOccurred())
+		err2 = store.Migrate(db)
+		Expect(err2).NotTo(HaveOccurred())
 
 		ps := store.NewProjectStore(db)
 		ss := store.NewSubjectStore(db)
+		as := store.NewAccountStore(db, make([]byte, 32))
 		projectSvc = service.NewProjectService(ps, tmpDir)
 		svc = service.NewSubjectService(ss, ps, tmpDir)
+		accountSvc = service.NewAccountService(as)
 
 		cleanup = func() {
 			db.Close()
@@ -255,6 +261,105 @@ var _ = Describe("SubjectService", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			err = svc.Delete(p2.ID, sub.ID, false)
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Describe("LinkAccount / UnlinkAccount / ListLinkedAccounts", func() {
+		It("links and lists accounts", func() {
+			project, err := projectSvc.Create("Link Project", "")
+			Expect(err).NotTo(HaveOccurred())
+			sub, err := svc.Create(project.ID, "Link Subject")
+			Expect(err).NotTo(HaveOccurred())
+			account, err := accountSvc.Create("instagram", "linkuser")
+			Expect(err).NotTo(HaveOccurred())
+
+			err = svc.LinkAccount(project.ID, sub.ID, account.ID)
+			Expect(err).NotTo(HaveOccurred())
+
+			linked, err := svc.ListLinkedAccounts(project.ID, sub.ID)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(linked).To(HaveLen(1))
+			Expect(linked[0].Handle).To(Equal("linkuser"))
+		})
+
+		It("returns conflict error when linking same account twice", func() {
+			project, err := projectSvc.Create("Dup Link Project", "")
+			Expect(err).NotTo(HaveOccurred())
+			sub, err := svc.Create(project.ID, "Dup Link Subject")
+			Expect(err).NotTo(HaveOccurred())
+			account, err := accountSvc.Create("instagram", "duplinkuser")
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(svc.LinkAccount(project.ID, sub.ID, account.ID)).To(Succeed())
+			err = svc.LinkAccount(project.ID, sub.ID, account.ID)
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(MatchError(ContainSubstring("already linked")))
+		})
+
+		It("allows linking same account to multiple subjects", func() {
+			project, err := projectSvc.Create("Multi Link Project", "")
+			Expect(err).NotTo(HaveOccurred())
+			s1, err := svc.Create(project.ID, "Multi Link Sub1")
+			Expect(err).NotTo(HaveOccurred())
+			s2, err := svc.Create(project.ID, "Multi Link Sub2")
+			Expect(err).NotTo(HaveOccurred())
+			account, err := accountSvc.Create("instagram", "multiuser")
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(svc.LinkAccount(project.ID, s1.ID, account.ID)).To(Succeed())
+			Expect(svc.LinkAccount(project.ID, s2.ID, account.ID)).To(Succeed())
+
+			l1, err := svc.ListLinkedAccounts(project.ID, s1.ID)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(l1).To(HaveLen(1))
+
+			l2, err := svc.ListLinkedAccounts(project.ID, s2.ID)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(l2).To(HaveLen(1))
+		})
+
+		It("unlinks account without deleting the account itself", func() {
+			project, err := projectSvc.Create("Unlink Project", "")
+			Expect(err).NotTo(HaveOccurred())
+			sub, err := svc.Create(project.ID, "Unlink Subject")
+			Expect(err).NotTo(HaveOccurred())
+			account, err := accountSvc.Create("instagram", "unlinkuser")
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(svc.LinkAccount(project.ID, sub.ID, account.ID)).To(Succeed())
+			Expect(svc.UnlinkAccount(project.ID, sub.ID, account.ID)).To(Succeed())
+
+			// Account still exists.
+			got, err := accountSvc.Get(account.ID)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got.ID).To(Equal(account.ID))
+
+			// Link is gone.
+			linked, err := svc.ListLinkedAccounts(project.ID, sub.ID)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(linked).To(BeEmpty())
+		})
+
+		It("returns not found when linking non-existent account", func() {
+			project, err := projectSvc.Create("NF Link Project", "")
+			Expect(err).NotTo(HaveOccurred())
+			sub, err := svc.Create(project.ID, "NF Link Subject")
+			Expect(err).NotTo(HaveOccurred())
+
+			err = svc.LinkAccount(project.ID, sub.ID, "nonexistent-account-id")
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("returns not found when unlinking a non-existent link", func() {
+			project, err := projectSvc.Create("NF Unlink Project", "")
+			Expect(err).NotTo(HaveOccurred())
+			sub, err := svc.Create(project.ID, "NF Unlink Subject")
+			Expect(err).NotTo(HaveOccurred())
+			account, err := accountSvc.Create("instagram", "nfunlinkuser")
+			Expect(err).NotTo(HaveOccurred())
+
+			err = svc.UnlinkAccount(project.ID, sub.ID, account.ID)
 			Expect(err).To(HaveOccurred())
 		})
 	})

@@ -62,7 +62,7 @@ func (s *SubjectStore) Get(id string) (*model.Subject, error) {
 	sub.SampleStats = stats
 
 	// Load linked accounts.
-	accounts, err := s.getLinkedAccounts(id)
+	accounts, err := s.ListLinkedAccounts(id)
 	if err != nil {
 		return nil, fmt.Errorf("get linked accounts: %w", err)
 	}
@@ -157,6 +157,44 @@ func (s *SubjectStore) SlugExistsInProject(projectID, slug string) (bool, error)
 	return count > 0, nil
 }
 
+// LinkAccount inserts a subject_accounts join row. Returns ErrDuplicateLink if already linked.
+func (s *SubjectStore) LinkAccount(subjectID, accountID string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := s.db.Exec(
+		`INSERT INTO subject_accounts (subject_id, account_id, created_at) VALUES (?, ?, ?)`,
+		subjectID, accountID, now,
+	)
+	if err != nil {
+		if isDuplicateConstraint(err) {
+			return fmt.Errorf("account %q already linked to subject %q: %w", accountID, subjectID, ErrDuplicateLink)
+		}
+		if isForeignKeyConstraint(err) {
+			return fmt.Errorf("account %q: %w", accountID, ErrNotFound)
+		}
+		return fmt.Errorf("link account: %w", err)
+	}
+	return nil
+}
+
+// UnlinkAccount removes a subject_accounts join row.
+func (s *SubjectStore) UnlinkAccount(subjectID, accountID string) error {
+	result, err := s.db.Exec(
+		`DELETE FROM subject_accounts WHERE subject_id = ? AND account_id = ?`,
+		subjectID, accountID,
+	)
+	if err != nil {
+		return fmt.Errorf("unlink account: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check rows affected: %w", err)
+	}
+	if affected == 0 {
+		return fmt.Errorf("link (subject=%q, account=%q): %w", subjectID, accountID, ErrNotFound)
+	}
+	return nil
+}
+
 // getSampleStats returns sample counts by status for a subject.
 func (s *SubjectStore) getSampleStats(subjectID string) (model.SampleStats, error) {
 	rows, err := s.db.Query(`
@@ -188,8 +226,8 @@ func (s *SubjectStore) getSampleStats(subjectID string) (model.SampleStats, erro
 	return stats, rows.Err()
 }
 
-// getLinkedAccounts returns accounts linked to a subject.
-func (s *SubjectStore) getLinkedAccounts(subjectID string) ([]model.LinkedAccount, error) {
+// ListLinkedAccounts returns accounts linked to a subject.
+func (s *SubjectStore) ListLinkedAccounts(subjectID string) ([]model.LinkedAccount, error) {
 	rows, err := s.db.Query(`
 		SELECT a.id, a.platform, a.handle
 		FROM accounts a

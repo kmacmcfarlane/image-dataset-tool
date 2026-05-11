@@ -132,18 +132,99 @@
         </label>
       </div>
     </n-modal>
+
+    <!-- Link Account Dialog -->
+    <n-modal
+      v-model:show="showLinkAccountDialog"
+      preset="dialog"
+      title="Link Account"
+      positive-text="Link"
+      negative-text="Cancel"
+      data-testid="link-account-dialog"
+      @positive-click="handleLinkAccount"
+      @negative-click="closeLinkAccountDialog"
+    >
+      <div class="link-account-form">
+        <p class="link-account-subject-name">
+          Subject: <strong>{{ linkAccountSubject?.name }}</strong>
+        </p>
+
+        <div
+          v-if="linkedAccountIds.size > 0"
+          class="linked-accounts-list"
+          data-testid="linked-accounts-list"
+        >
+          <p class="form-label">
+            Currently linked:
+          </p>
+          <div
+            v-for="a in currentLinkedAccounts"
+            :key="a.id"
+            class="linked-account-row"
+            :data-testid="`linked-account-row-${a.id}`"
+          >
+            <span class="linked-account-handle">{{ a.platform }}/{{ a.handle }}</span>
+            <n-button
+              size="tiny"
+              type="error"
+              quaternary
+              :data-testid="`unlink-account-btn-${a.id}`"
+              @click="handleUnlinkAccount(a.id)"
+            >
+              Unlink
+            </n-button>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label class="form-label">Add account</label>
+          <select
+            v-model="selectedAccountId"
+            class="form-input"
+            data-testid="account-picker"
+          >
+            <option value="">
+              -- select an account --
+            </option>
+            <option
+              v-for="a in availableAccounts"
+              :key="a.id"
+              :value="a.id"
+              :data-testid="`account-option-${a.id}`"
+            >
+              {{ a.platform }}/{{ a.handle }}
+            </option>
+          </select>
+        </div>
+
+        <div class="accounts-nav-hint">
+          <span class="nav-hint-text">Don't see the account you need?</span>
+          <router-link
+            to="/accounts"
+            class="nav-link"
+            data-testid="go-to-accounts-link"
+            @click="closeLinkAccountDialog"
+          >
+            Manage accounts
+          </router-link>
+        </div>
+      </div>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { NButton, NModal, NDropdown } from 'naive-ui'
 import { useSubjectsStore } from '../stores/subjects'
 import { useToastStore } from '../stores/toast'
 import { getProject } from '../api/projects'
 import type { ProjectDetail } from '../api/projects'
-import type { SubjectResult } from '../api/subjects'
+import { listAccounts } from '../api/accounts'
+import type { AccountResult } from '../api/accounts'
+import { linkAccount, unlinkAccount, listLinkedAccounts } from '../api/subjects'
+import type { SubjectResult, SubjectLinkedAccount } from '../api/subjects'
 
 const route = useRoute()
 const subjectStore = useSubjectsStore()
@@ -169,8 +250,22 @@ const contextMenuSubject = ref<SubjectResult | null>(null)
 
 const contextMenuOptions = [
   { label: 'Edit', key: 'edit' },
+  { label: 'Link account', key: 'link-account' },
   { label: 'Delete', key: 'delete' },
 ]
+
+// Link account dialog state
+const showLinkAccountDialog = ref(false)
+const linkAccountSubject = ref<SubjectResult | null>(null)
+const selectedAccountId = ref('')
+const allAccounts = ref<AccountResult[]>([])
+const currentLinkedAccounts = ref<SubjectLinkedAccount[]>([])
+
+const linkedAccountIds = computed(() => new Set(currentLinkedAccounts.value.map((a) => a.id)))
+
+const availableAccounts = computed(() =>
+  allAccounts.value.filter((a) => !linkedAccountIds.value.has(a.id)),
+)
 
 onMounted(async () => {
   try {
@@ -197,6 +292,8 @@ function handleContextAction(key: string): void {
     openEditDialog(subject)
   } else if (key === 'delete') {
     openDeleteDialog(subject)
+  } else if (key === 'link-account') {
+    openLinkAccountDialog(subject)
   }
 }
 
@@ -256,6 +353,64 @@ async function handleConfirmDelete(): Promise<void> {
   }
   showDeleteDialog.value = false
   deletingSubject.value = null
+}
+
+async function openLinkAccountDialog(subject: SubjectResult): Promise<void> {
+  linkAccountSubject.value = subject
+  selectedAccountId.value = ''
+  showLinkAccountDialog.value = true
+
+  try {
+    const [accountsResult, linkedResult] = await Promise.all([
+      listAccounts(),
+      listLinkedAccounts(projectId, subject.id),
+    ])
+    allAccounts.value = accountsResult.accounts
+    currentLinkedAccounts.value = linkedResult.accounts
+  } catch {
+    // Error already handled by API error handler
+  }
+}
+
+function closeLinkAccountDialog(): void {
+  showLinkAccountDialog.value = false
+  linkAccountSubject.value = null
+  selectedAccountId.value = ''
+  allAccounts.value = []
+  currentLinkedAccounts.value = []
+}
+
+async function handleLinkAccount(): Promise<boolean | void> {
+  if (!linkAccountSubject.value || !selectedAccountId.value) {
+    toastStore.addToast('warning', 'Please select an account to link')
+    return false
+  }
+
+  try {
+    await linkAccount(projectId, linkAccountSubject.value.id, selectedAccountId.value)
+    // Refresh linked accounts list
+    const linkedResult = await listLinkedAccounts(projectId, linkAccountSubject.value.id)
+    currentLinkedAccounts.value = linkedResult.accounts
+    selectedAccountId.value = ''
+    toastStore.addToast('info', 'Account linked successfully')
+  } catch {
+    // Error already handled by API error handler
+    return false
+  }
+  return false // keep dialog open so user can link more
+}
+
+async function handleUnlinkAccount(accountId: string): Promise<void> {
+  if (!linkAccountSubject.value) return
+
+  try {
+    await unlinkAccount(projectId, linkAccountSubject.value.id, accountId)
+    const linkedResult = await listLinkedAccounts(projectId, linkAccountSubject.value.id)
+    currentLinkedAccounts.value = linkedResult.accounts
+    toastStore.addToast('info', 'Account unlinked')
+  } catch {
+    // Error already handled by API error handler
+  }
 }
 </script>
 
@@ -393,5 +548,62 @@ async function handleConfirmDelete(): Promise<void> {
   font-size: 13px;
   color: var(--text-secondary);
   cursor: pointer;
+}
+
+/* Link account form */
+.link-account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.link-account-subject-name {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.linked-accounts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.linked-account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-color);
+}
+
+.linked-account-handle {
+  font-size: 13px;
+  color: var(--text-color);
+  font-family: monospace;
+}
+
+.accounts-nav-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.nav-hint-text {
+  color: var(--text-secondary);
+}
+
+.nav-link {
+  color: var(--accent-color);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.nav-link:hover {
+  text-decoration: underline;
 }
 </style>
