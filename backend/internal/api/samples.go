@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	logrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
@@ -100,8 +100,8 @@ func extractSubjectID(urlPath string) string {
 		return "" // prefix not found
 	}
 	// Take everything up to the next slash.
-	if idx := strings.Index(rest, "/"); idx >= 0 {
-		return rest[:idx]
+	if before, _, found := strings.Cut(rest, "/"); found {
+		return before
 	}
 	return rest
 }

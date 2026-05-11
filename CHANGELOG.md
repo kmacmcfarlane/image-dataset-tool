@@ -5,16 +5,9 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 ### S-017: Streaming grid view: connect-then-fetch, virtual scroll, lazy thumbnails
-- Backend: `GET /v1/subjects/{sid}/samples` endpoint returning full sample metadata array (no pagination, per PRD)
-- Backend: `SampleStore.ListBySubject` queries all samples for a subject ordered by created_at DESC
-- Backend: `SamplesHandler` custom HTTP handler with UUID format validation
-- Frontend: Samples API client (`api/samples.ts`) with `Sample`, `SampleNewEvent`, `SampleUpdatedEvent` types
-- Frontend: Samples Pinia store (`stores/samples.ts`) implementing connect-then-fetch pattern: SSE connect first, fetch metadata, buffer/merge events by ID (idempotent)
-- Frontend: `SampleGridView.vue` with virtual scroll (computed visible rows from scroll position), status filter toggles (pending default on, kept/rejected off), duplicate toggle (off by default)
-- Frontend: `SampleThumbnail.vue` with IntersectionObserver-based lazy loading (200px root margin pre-load), status badges, duplicate badges
-- Client-side filtering: pending/kept/rejected toggles and duplicate visibility applied as computed properties
-- Unit tests: SampleStore (3 specs), SamplesHandler (4 specs), samples Pinia store (11 specs)
-- E2E tests: samples endpoint validation, grid view rendering, SSE connection verification
+- `GET /v1/subjects/{sid}/samples` returns full metadata array (no pagination per PRD §8.3); connect-then-fetch pattern: SSE first, fetch metadata, merge by ID
+- Virtual scroll renders only visible rows + buffer for 10k+ sample support; lazy thumbnail loading via IntersectionObserver
+- Client-side status filters (pending/kept/rejected toggles, default pending) and duplicate toggle (off by default) with badges
 
 ### S-012: Link accounts to subjects (many-to-many)
 - Three new Goa-designed API endpoints under `/v1/projects/{pid}/subjects/{sid}/accounts`: POST (link account by account_id), GET (list linked accounts), DELETE /{aid} (unlink join row only, never deletes account)

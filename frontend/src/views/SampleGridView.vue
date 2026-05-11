@@ -160,12 +160,6 @@ onMounted(() => {
   if (sid) {
     store.connectAndFetch(sid)
   }
-
-  if (scrollContainer.value) {
-    resizeObserver = new ResizeObserver(() => updateContainerSize())
-    resizeObserver.observe(scrollContainer.value)
-    updateContainerSize()
-  }
 })
 
 onUnmounted(() => {
@@ -173,6 +167,15 @@ onUnmounted(() => {
   if (resizeObserver) {
     resizeObserver.disconnect()
     resizeObserver = null
+  }
+})
+
+// Attach ResizeObserver when scroll container becomes available (conditionally rendered).
+watch(scrollContainer, (el) => {
+  if (el && !resizeObserver) {
+    resizeObserver = new ResizeObserver(() => updateContainerSize())
+    resizeObserver.observe(el)
+    updateContainerSize()
   }
 })
 
