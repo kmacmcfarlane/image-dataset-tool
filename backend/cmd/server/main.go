@@ -158,6 +158,10 @@ func main() {
 	mux.Handle("GET", "/v1/media/{sample_id}", http.HandlerFunc(mediaHandler.ServeImage))
 	mux.Handle("GET", "/v1/media/{sample_id}/thumb", http.HandlerFunc(mediaHandler.ServeThumbnail))
 
+	sampleStore := store.NewSampleStore(db)
+	samplesHandler := api.NewSamplesHandler(sampleStore)
+	mux.Handle("GET", "/v1/subjects/{sid}/samples", http.HandlerFunc(samplesHandler.ServeList))
+
 	mux.Handle("GET", "/api/sse", http.HandlerFunc(sseHandler.ServeHTTP))
 
 	mux.Handle("GET", "/docs", api.DocsHandler())
