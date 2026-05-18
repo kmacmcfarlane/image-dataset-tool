@@ -5,12 +5,9 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 ### S-034: Zip stream download via Goa native streaming
-- Goa native `exports` service with two endpoints: `POST /v1/exports` (server-side) and `POST /v1/exports/zip` (zip stream download); both appear in OpenAPI spec at `/docs/openapi3.json`
-- Zip built on-the-fly via `archive/zip` writing to `io.Pipe`; one sample materialized at a time so memory stays bounded regardless of dataset size (1000+ images supported)
-- `ZipExportService` in `internal/service` streams images with project/subject directory structure; includes paired `.txt` captions when study slug provided
-- `ExportStore` in `internal/store` provides DB operations for the zip export pipeline
-- Frontend `ExportView.vue`: project/subject selectors, format picker, "Export to Server" and "Download Zip" buttons; download triggers browser save dialog via blob URL
-- Migrated existing `POST /v1/exports` from custom HTTP handler to Goa-generated endpoint for unified OpenAPI coverage
+- `POST /v1/exports/zip` streams a zip archive on-the-fly via `io.Pipe`; one sample materialized at a time for bounded memory (1000+ images without OOM)
+- Migrated existing `POST /v1/exports` from custom HTTP handler to Goa-native `exports` service; both endpoints now appear in OpenAPI spec
+- Frontend export view with project/subject selectors and "Download Zip" button triggering browser save dialog
 
 ### S-033: Server-side export via NATS pipeline + progress + ETA
 - `POST /v1/exports` triggers server-side export; publishes one NATS message per kept sample to `media.export`
