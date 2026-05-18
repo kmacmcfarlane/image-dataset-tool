@@ -156,6 +156,8 @@ sample's `.json` manifest keyed by study slug.
 | failed_items         | INTEGER | Moved to DLQ or max retries                                  |
 | trace_id             | TEXT    | UUID grouping all messages from one triggering event, nullable |
 | pagination_exhausted | INTEGER | 0 or 1. Set when no more pages will be discovered            |
+| output_path          | TEXT    | Nullable. Final export output directory path                  |
+| sample_count         | INTEGER | Nullable. Final count of successfully exported samples        |
 | started_at           | TEXT    | ISO 8601                                                     |
 | finished_at          | TEXT    | ISO 8601, nullable                                           |
 | created_at           | TEXT    | ISO 8601                                                     |

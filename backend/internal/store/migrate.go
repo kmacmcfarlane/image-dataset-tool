@@ -185,6 +185,14 @@ CREATE INDEX IF NOT EXISTS idx_job_runs_status ON job_runs(status);
 CREATE INDEX IF NOT EXISTS idx_job_runs_trace_id ON job_runs(trace_id);
 `,
 	},
+	{
+		version: 3,
+		name:    "add_export_columns",
+		sql: `
+ALTER TABLE job_runs ADD COLUMN output_path TEXT;
+ALTER TABLE job_runs ADD COLUMN sample_count INTEGER;
+`,
+	},
 }
 
 // Migrate applies all pending migrations to the database.

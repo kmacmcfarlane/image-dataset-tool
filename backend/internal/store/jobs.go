@@ -66,7 +66,8 @@ func (s *JobStore) ListJobs(f JobListFilter) ([]*model.JobRun, int64, error) {
 	rows, err := s.db.Query(
 		fmt.Sprintf(`SELECT id, type, COALESCE(subject_id,''), COALESCE(study_id,''),
 			status, total_items, completed_items, failed_items,
-			started_at, COALESCE(finished_at,''), created_at
+			started_at, COALESCE(finished_at,''), created_at,
+			COALESCE(output_path,''), sample_count
 		FROM job_runs %s
 		ORDER BY created_at DESC
 		LIMIT ? OFFSET ?`, where),
@@ -81,16 +82,22 @@ func (s *JobStore) ListJobs(f JobListFilter) ([]*model.JobRun, int64, error) {
 	for rows.Next() {
 		jr := &model.JobRun{}
 		var totalItems sql.NullInt64
+		var sampleCount sql.NullInt64
 		if err := rows.Scan(
 			&jr.ID, &jr.Type, &jr.SubjectID, &jr.StudyID,
 			&jr.Status, &totalItems, &jr.CompletedItems, &jr.FailedItems,
 			&jr.StartedAt, &jr.FinishedAt, &jr.CreatedAt,
+			&jr.OutputPath, &sampleCount,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan job_run: %w", err)
 		}
 		if totalItems.Valid {
 			v := int(totalItems.Int64)
 			jr.TotalItems = &v
+		}
+		if sampleCount.Valid {
+			v := int(sampleCount.Int64)
+			jr.SampleCount = &v
 		}
 		jobs = append(jobs, jr)
 	}
@@ -105,15 +112,18 @@ func (s *JobStore) GetJob(id string) (*model.JobRun, error) {
 	row := s.db.QueryRow(`
 		SELECT id, type, COALESCE(subject_id,''), COALESCE(study_id,''),
 			status, total_items, completed_items, failed_items,
-			started_at, COALESCE(finished_at,''), created_at
+			started_at, COALESCE(finished_at,''), created_at,
+			COALESCE(output_path,''), sample_count
 		FROM job_runs WHERE id = ?`, id)
 
 	jr := &model.JobRun{}
 	var totalItems sql.NullInt64
+	var sampleCount sql.NullInt64
 	if err := row.Scan(
 		&jr.ID, &jr.Type, &jr.SubjectID, &jr.StudyID,
 		&jr.Status, &totalItems, &jr.CompletedItems, &jr.FailedItems,
 		&jr.StartedAt, &jr.FinishedAt, &jr.CreatedAt,
+		&jr.OutputPath, &sampleCount,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("job %q: %w", id, ErrNotFound)
@@ -124,7 +134,51 @@ func (s *JobStore) GetJob(id string) (*model.JobRun, error) {
 		v := int(totalItems.Int64)
 		jr.TotalItems = &v
 	}
+	if sampleCount.Valid {
+		v := int(sampleCount.Int64)
+		jr.SampleCount = &v
+	}
 	return jr, nil
+}
+
+// CreateJobRun inserts a new job_run row.
+func (s *JobStore) CreateJobRun(jr *model.JobRun) error {
+	_, err := s.db.Exec(`
+		INSERT INTO job_runs (id, type, subject_id, study_id, status,
+			total_items, completed_items, failed_items, trace_id,
+			pagination_exhausted, output_path, started_at, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, 0, ?, ?, ?, ?)`,
+		jr.ID, jr.Type,
+		nullIfEmpty(jr.SubjectID), nullIfEmpty(jr.StudyID),
+		jr.Status, jr.TotalItems, jr.TraceID,
+		nullIfEmpty(jr.OutputPath),
+		jr.StartedAt, jr.CreatedAt, jr.CreatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("insert job_run: %w", err)
+	}
+	return nil
+}
+
+// UpdateJobRunExportResult sets the output_path and sample_count on a completed export job.
+func (s *JobStore) UpdateJobRunExportResult(jobID, outputPath string, sampleCount int) error {
+	_, err := s.db.Exec(`
+		UPDATE job_runs SET output_path = ?, sample_count = ?, updated_at = datetime('now')
+		WHERE id = ?`,
+		outputPath, sampleCount, jobID,
+	)
+	if err != nil {
+		return fmt.Errorf("update export result for job %s: %w", jobID, err)
+	}
+	return nil
+}
+
+// nullIfEmpty returns nil if s is empty, otherwise s.
+func nullIfEmpty(s string) interface{} {
+	if s == "" {
+		return nil
+	}
+	return s
 }
 
 // JobMessageFilter holds optional filters for ListJobMessages.

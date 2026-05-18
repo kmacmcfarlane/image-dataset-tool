@@ -13,6 +13,8 @@ type JobRun struct {
 	CompletedItems   int
 	FailedItems      int
 	TraceID          string // optional
+	OutputPath       string // optional — final export output path
+	SampleCount      *int   // optional — final sample count for export jobs
 	StartedAt        string
 	FinishedAt       string // optional
 	CreatedAt        string

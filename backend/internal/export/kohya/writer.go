@@ -271,6 +271,75 @@ func (w *Writer) getCaption(sampleID, studyID string) (string, bool, error) {
 	return text, true, nil
 }
 
+// WriteSingle exports a single sample by ID. This is used by the NATS pipeline
+// handler to process one sample per message.
+func (w *Writer) WriteSingle(ctx context.Context, opts model.ExportOptions, sampleID string) error {
+	// Ensure output directory exists.
+	if err := os.MkdirAll(opts.OutputDir, 0755); err != nil {
+		return fmt.Errorf("create output dir %s: %w", opts.OutputDir, err)
+	}
+
+	// Fetch the sample.
+	sample, err := w.getSample(sampleID)
+	if err != nil {
+		return fmt.Errorf("get sample %s: %w", sampleID, err)
+	}
+
+	// Resolve study ID from slug (if provided).
+	studyID := ""
+	if opts.StudySlug != "" && opts.ProjectSlug != "" {
+		// Need project ID from subject.
+		var projectID string
+		err := w.db.QueryRow(`
+			SELECT p.id FROM projects p
+			JOIN subjects s ON s.project_id = p.id
+			WHERE p.slug = ? AND s.id = ?`, opts.ProjectSlug, sample.SubjectID).Scan(&projectID)
+		if err != nil {
+			return fmt.Errorf("resolve project for sample %s: %w", sampleID, err)
+		}
+		studyID, err = w.resolveStudy(projectID, opts.StudySlug)
+		if err != nil {
+			return fmt.Errorf("resolve study: %w", err)
+		}
+	}
+
+	result := &model.ExportResult{OutputDir: opts.OutputDir}
+	if err := w.writeSample(ctx, sample, studyID, opts.OutputDir, result); err != nil {
+		return fmt.Errorf("write sample %s: %w", sampleID, err)
+	}
+
+	return nil
+}
+
+// getSample fetches a single sample by ID.
+func (w *Writer) getSample(sampleID string) (*model.Sample, error) {
+	row := w.db.QueryRow(`
+		SELECT id, subject_id, source_platform, source_post_id, slide_index,
+		       file_path, sha256, phash, width, height, taken_at, fetched_at,
+		       status, is_duplicate, duplicate_of, created_at, updated_at
+		FROM samples
+		WHERE id = ?`, sampleID)
+
+	var sample model.Sample
+	var takenAt sql.NullString
+	var duplicateOf sql.NullString
+	var isDup int
+
+	if err := row.Scan(
+		&sample.ID, &sample.SubjectID, &sample.SourcePlatform,
+		&sample.SourcePostID, &sample.SlideIndex, &sample.FilePath,
+		&sample.SHA256, &sample.PHash, &sample.Width, &sample.Height,
+		&takenAt, &sample.FetchedAt, &sample.Status,
+		&isDup, &duplicateOf, &sample.CreatedAt, &sample.UpdatedAt,
+	); err != nil {
+		return nil, fmt.Errorf("scan sample: %w", err)
+	}
+	sample.TakenAt = takenAt.String
+	sample.DuplicateOf = duplicateOf.String
+	sample.IsDuplicate = isDup != 0
+	return &sample, nil
+}
+
 // parseCropBoxJSON converts a NullString JSON to a model.CropBox, or nil.
 func parseCropBoxJSON(ns sql.NullString) *model.CropBox {
 	if !ns.Valid || ns.String == "" || ns.String == "null" {

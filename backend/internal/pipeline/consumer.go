@@ -63,6 +63,13 @@ type ConsumerOpts struct {
 	// InProgressInterval is how often to send msg.InProgress() for long operations.
 	// Default: half of the consumer's AckWait.
 	InProgressInterval time.Duration
+
+	// ETATracker calculates ETA for job completion. Optional.
+	ETATracker *ETATracker
+
+	// OnJobComplete is called when a job transitions to a terminal state.
+	// The callback receives (jobID, status). Optional.
+	OnJobComplete func(ctx context.Context, jobID string, status JobStatus)
 }
 
 // Consumer pulls messages from a NATS JetStream durable consumer and
@@ -257,8 +264,10 @@ func (c *Consumer) handleMessage(ctx context.Context, log *slog.Logger, msg jets
 	}
 
 	// Success: increment DB counter, then ACK.
+	var completed, failed, total int
 	if c.opts.Tracker != nil {
-		_, _, _, tErr := c.opts.Tracker.IncrCompleted(ctx, env.JobID)
+		var tErr error
+		completed, failed, total, tErr = c.opts.Tracker.IncrCompleted(ctx, env.JobID)
 		if tErr != nil {
 			// DB failed — NAK so the message is retried.
 			msgLog.Error("DB counter increment failed, NAKing",
@@ -279,6 +288,14 @@ func (c *Consumer) handleMessage(ctx context.Context, log *slog.Logger, msg jets
 	c.consecutiveDiskErrors.Store(0)
 
 	c.logDuration(msgLog, start, "ack")
+
+	// Emit job.progress SSE event with ETA.
+	if c.opts.Tracker != nil && c.opts.EventSink != nil {
+		if c.opts.ETATracker != nil {
+			c.opts.ETATracker.RecordCompletion(env.JobID)
+		}
+		c.emitProgress(env, completed, failed, total)
+	}
 
 	// Check for job completion.
 	if c.opts.Tracker != nil {
@@ -361,16 +378,55 @@ func (c *Consumer) checkAndEmitCompletion(ctx context.Context, log *slog.Logger,
 		log.Error("check completion failed", slog.String("error", err.Error()))
 		return
 	}
-	if newStatus != "" && c.opts.EventSink != nil {
-		c.opts.EventSink.Emit(SSEEvent{
-			Type: "job.state",
-			Data: map[string]interface{}{
-				"id":       env.JobID,
-				"trace_id": env.TraceID,
-				"status":   string(newStatus),
-			},
-		})
+	if newStatus != "" {
+		if c.opts.EventSink != nil {
+			c.opts.EventSink.Emit(SSEEvent{
+				Type: "job.state",
+				Data: map[string]interface{}{
+					"id":       env.JobID,
+					"trace_id": env.TraceID,
+					"status":   string(newStatus),
+				},
+			})
+		}
+		// Clean up ETA tracking data.
+		if c.opts.ETATracker != nil {
+			c.opts.ETATracker.Remove(env.JobID)
+		}
+		// Call completion callback if registered.
+		if c.opts.OnJobComplete != nil {
+			c.opts.OnJobComplete(ctx, env.JobID, newStatus)
+		}
 	}
+}
+
+// emitProgress emits a job.progress SSE event with current counts and ETA.
+func (c *Consumer) emitProgress(env *Envelope, completed, failed, total int) {
+	pct := 0.0
+	if total > 0 {
+		pct = float64(completed+failed) / float64(total) * 100
+	}
+
+	data := map[string]interface{}{
+		"id":        env.JobID,
+		"trace_id":  env.TraceID,
+		"completed": completed,
+		"failed":    failed,
+		"total":     total,
+		"pct":       pct,
+	}
+
+	if c.opts.ETATracker != nil {
+		eta := c.opts.ETATracker.EstimateETA(env.JobID, completed+failed, total)
+		if eta > 0 {
+			data["eta_seconds"] = eta
+		}
+	}
+
+	c.opts.EventSink.Emit(SSEEvent{
+		Type: "job.progress",
+		Data: data,
+	})
 }
 
 // logDuration emits the structured log line per AC.

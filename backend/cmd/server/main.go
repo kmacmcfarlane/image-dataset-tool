@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -24,6 +25,7 @@ import (
 	subjectssvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/subjects/server"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/crypto"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/datadir"
+	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/export/kohya"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/natsutil"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/pipeline"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/reconciler"
@@ -196,6 +198,19 @@ func main() {
 
 	mux.Handle("GET", "/api/sse", http.HandlerFunc(sseHandler.ServeHTTP))
 
+	// --- Export pipeline ---
+	kohyaWriter := kohya.NewWriter(db, dir)
+	exportSvc := service.NewExportService(db, natsSrv.JS(), jobStore, dir)
+	exportHandler := service.NewExportHandler(kohyaWriter, jobStore)
+	exportsAPIHandler := api.NewExportsHandler(exportSvc)
+	mux.Handle("POST", "/v1/exports", http.HandlerFunc(exportsAPIHandler.ServeCreate))
+
+	// Start the media.export consumer.
+	tracker := pipeline.NewJobTracker(db)
+	etaTracker := pipeline.NewETATracker()
+	exportConsumer := startExportConsumer(natsSrv, tracker, sink, etaTracker, exportHandler, jobStore)
+	defer exportConsumer.Stop()
+
 	mux.Handle("GET", "/docs", api.DocsHandler())
 	mux.Handle("GET", "/docs/openapi3.json", api.DocsSpecHandler())
 
@@ -217,4 +232,55 @@ func main() {
 		slog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+// startExportConsumer creates and starts the media.export NATS pipeline consumer.
+func startExportConsumer(
+	natsSrv *natsutil.Server,
+	tracker pipeline.JobTracker,
+	sink pipeline.EventSink,
+	etaTracker *pipeline.ETATracker,
+	handler *service.ExportHandler,
+	jobStore *store.JobStore,
+) *pipeline.Consumer {
+	js := natsSrv.JS()
+	ctx := context.Background()
+
+	cons, err := js.Consumer(ctx, natsutil.StreamName, natsutil.ConsumerExport)
+	if err != nil {
+		slog.Error("Failed to get export consumer", "error", err)
+		os.Exit(1)
+	}
+
+	pipelineConsumer := pipeline.NewConsumer(cons, pipeline.ConsumerOpts{
+		ConsumerName: natsutil.ConsumerExport,
+		Subject:      natsutil.SubjectExport,
+		Concurrency:  2,
+		MaxDeliver:   5,
+		Handler:      handler.Handle,
+		Tracker:      tracker,
+		JS:           js,
+		Logger:       slog.With("component", "export_consumer"),
+		EventSink:    sink,
+		ETATracker:   etaTracker,
+		OnJobComplete: func(ctx context.Context, jobID string, status pipeline.JobStatus) {
+			if status == pipeline.JobStatusSucceeded || status == pipeline.JobStatusFailed {
+				// Update sample_count from the completed_items.
+				jr, err := jobStore.GetJob(jobID)
+				if err != nil {
+					slog.Error("Failed to get job for export result update",
+						"error", err, "job_id", jobID)
+					return
+				}
+				if err := jobStore.UpdateJobRunExportResult(jobID, jr.OutputPath, jr.CompletedItems); err != nil {
+					slog.Error("Failed to update export result",
+						"error", err, "job_id", jobID)
+				}
+			}
+		},
+	})
+
+	pipelineConsumer.Start(ctx)
+	slog.Info("Export consumer started", "concurrency", 2)
+	return pipelineConsumer
 }

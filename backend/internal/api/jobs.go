@@ -84,6 +84,13 @@ func (s *JobsService) Get(_ context.Context, p *jobs.GetPayload) (*jobs.JobDetai
 		v := jr.FinishedAt
 		detail.FinishedAt = &v
 	}
+	if jr.OutputPath != "" {
+		v := jr.OutputPath
+		detail.OutputPath = &v
+	}
+	if jr.SampleCount != nil {
+		detail.SampleCount = jr.SampleCount
+	}
 	return detail, nil
 }
 
@@ -136,6 +143,13 @@ func jobRunToJobResult(jr *model.JobRun) *jobs.JobResult {
 	if jr.FinishedAt != "" {
 		v := jr.FinishedAt
 		r.FinishedAt = &v
+	}
+	if jr.OutputPath != "" {
+		v := jr.OutputPath
+		r.OutputPath = &v
+	}
+	if jr.SampleCount != nil {
+		r.SampleCount = jr.SampleCount
 	}
 	return r
 }
