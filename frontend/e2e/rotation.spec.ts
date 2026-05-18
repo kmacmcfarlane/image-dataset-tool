@@ -18,39 +18,6 @@ function backendURL(baseURL: string | undefined): string {
     : 'http://localhost:8080'
 }
 
-// Helper: create project + subject + sample via API, return ids.
-async function seedProjectSubjectSample(
-  page: import('@playwright/test').Page,
-  backend: string,
-  suffix: string,
-): Promise<{ projectId: string; subjectId: string; sampleId: string }> {
-  const projectResp = await page.request.post(`${backend}/v1/projects`, {
-    data: { name: `Rotation Test ${suffix}`, description: 'test' },
-  })
-  expect(projectResp.status()).toBe(201)
-  const project = await projectResp.json()
-
-  const subjectResp = await page.request.post(
-    `${backend}/v1/projects/${project.id}/subjects`,
-    { data: { name: `Rotation Subject ${suffix}` } },
-  )
-  expect(subjectResp.status()).toBe(201)
-  const subject = await subjectResp.json()
-
-  // Seed a sample directly through the backend ingest endpoint.
-  // Since no ingest endpoint exists in E2E context, we hit edits directly with
-  // a real sample id from the DB. We'll use a fixed test UUID and test the API
-  // contract; the UI tests navigate to the detail view and verify the controls
-  // are rendered even without a real image.
-  //
-  // A real sample requires the ingest pipeline, so instead we verify the
-  // rotation editor renders and that the API endpoints for edits handle the
-  // full rotation workflow (PUT/GET round-trip) against a seeded sample.
-  //
-  // For the UI-level rotation controls test we just need the detail page to load.
-  return { projectId: project.id, subjectId: subject.id, sampleId: '' }
-}
-
 // AC: Sample detail view renders rotation editor controls.
 test('Sample detail view renders rotation controls', async ({ page, baseURL }) => {
   const base = baseURL ?? 'http://frontend:3000'
@@ -209,9 +176,9 @@ test('Free-angle and 90-degree compose correctly', async ({ page, baseURL }) => 
   await page.locator('[data-testid="rotate-right-btn"]').click()
   await expect(page.locator('[data-testid="rotation-value"]')).toHaveText('270°')
 
-  // AC: CSS transform applied to image.
-  const img = page.locator('[data-testid="sample-detail-image"]')
-  await expect(img).toHaveCSS('transform', /matrix/)
+  // AC: CSS transform applied to the rotated image wrapper (CropEditor sits inside it).
+  const rotatedWrapper = page.locator('[data-testid="sample-detail-image-rotated"]')
+  await expect(rotatedWrapper).toHaveCSS('transform', /matrix/)
 })
 
 // AC: Persists across page reloads — PUT edits, reload, GET returns same value.

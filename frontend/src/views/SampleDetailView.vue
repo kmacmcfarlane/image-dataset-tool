@@ -21,6 +21,7 @@
       <div class="detail-image-wrap" data-testid="sample-detail-image-wrap">
         <div
           class="detail-image-rotated"
+          data-testid="sample-detail-image-rotated"
           :style="{ transform: `rotate(${currentRotation}deg)` }"
         >
           <img
