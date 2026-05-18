@@ -130,6 +130,7 @@
       <LightboxEditor
         v-if="lightboxSampleId"
         :sample-id="lightboxSampleId"
+        @navigate="onLightboxNavigate"
       />
     </n-modal>
   </div>
@@ -247,6 +248,33 @@ function onCardDblclick(id: string): void {
 /** Called when the lightbox modal finishes closing. */
 function onLightboxClose(): void {
   lightboxSampleId.value = null
+}
+
+/**
+ * AC: Lightbox caption navigation.
+ * If multi-selected, cycles within the selection; otherwise cycles filtered list.
+ */
+function onLightboxNavigate(direction: 'prev' | 'next'): void {
+  const filtered = store.filteredSamples
+  if (filtered.length === 0 || !lightboxSampleId.value) return
+
+  const pool = store.selectedCount > 1
+    ? filtered.filter((s) => store.selectedIds.has(s.id))
+    : filtered
+
+  if (pool.length === 0) return
+
+  const currentIdx = pool.findIndex((s) => s.id === lightboxSampleId.value)
+  let newIdx: number
+  if (currentIdx === -1) {
+    newIdx = 0
+  } else if (direction === 'next') {
+    newIdx = (currentIdx + 1) % pool.length
+  } else {
+    newIdx = (currentIdx - 1 + pool.length) % pool.length
+  }
+
+  lightboxSampleId.value = pool[newIdx].id
 }
 
 /**

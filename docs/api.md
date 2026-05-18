@@ -54,6 +54,7 @@ The API is organized into Goa services, each mapping to a resource domain:
 | settings    | /v1/settings | Secrets, config, provider testing    |
 | samples*    | /v1/samples  | Sample status updates (single + bulk)|
 | edits*      | /v1/samples  | Edit operations persistence (CRUD)   |
+| captions*   | /v1/samples  | Caption CRUD with study grouping      |
 | media*      | /v1/media    | Raw image and thumbnail serving      |
 | sse*        | /api/sse     | Server-sent events stream            |
 | docs*       | /docs        | Swagger UI and OpenAPI spec          |

@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-023: Caption side panel: view/edit captions, navigation
+- New `GET/PUT /v1/samples/{id}/captions` endpoints; manual edits auto-create a "manual" pseudo-study, preserving original study captions
+- `CaptionPanel.vue` integrated into sample detail and lightbox views with study-grouped display, resizable textarea editing, and debounced auto-save
+- Arrow key navigation: cycles within multi-selection if active, otherwise cycles filtered sample list
+
 ### S-021: Manual rectangle crop
 - New `CropEditor.vue` component: drag-to-draw, resizable, movable crop overlay positioned over the rotated image container; stored as percentages
 - `SampleDetailView.vue`: crop overlay + clip-path preview composing correctly with rotation (rotate first, then crop); crop section in controls panel; clear-crop button; auto-save + reset wired to edit-ops store

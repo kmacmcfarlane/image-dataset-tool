@@ -171,6 +171,11 @@ func main() {
 	mux.Handle("PUT", "/v1/samples/{id}/edits", http.HandlerFunc(editsHandler.ServePutEdits))
 	mux.Handle("DELETE", "/v1/samples/{id}/edits", http.HandlerFunc(editsHandler.ServeDeleteEdits))
 
+	captionStore := store.NewCaptionStore(db)
+	captionsHandler := api.NewCaptionsHandler(captionStore, sampleStore)
+	mux.Handle("GET", "/v1/samples/{id}/captions", http.HandlerFunc(captionsHandler.ServeListCaptions))
+	mux.Handle("PUT", "/v1/samples/{id}/captions", http.HandlerFunc(captionsHandler.ServeSaveCaption))
+
 	mux.Handle("GET", "/api/sse", http.HandlerFunc(sseHandler.ServeHTTP))
 
 	mux.Handle("GET", "/docs", api.DocsHandler())

@@ -6,7 +6,8 @@
     (double-click on a thumbnail). It shares the same edit store as
     SampleDetailView so changes persist immediately.
 
-    Events: none (communicates via store).
+    Events:
+    - navigate: 'prev' | 'next' — caption panel navigation
   -->
   <div class="lightbox-editor" data-testid="lightbox-editor">
     <!-- Loading state -->
@@ -100,6 +101,14 @@
           <n-text depth="3">Saving…</n-text>
         </div>
       </div>
+
+      <!-- Caption panel -->
+      <div class="lightbox-captions" data-testid="lightbox-captions">
+        <CaptionPanel
+          :sample-id="props.sampleId"
+          @navigate="onCaptionNavigate"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -108,17 +117,24 @@
 /**
  * LightboxEditor: per-sample rotation + crop editor used inside the grid lightbox modal.
  *
- * Events: none — communicates changes via the samples Pinia store.
+ * Events:
+ * - navigate: emitted when caption panel prev/next is clicked, payload 'prev' | 'next'
  */
 import { ref, computed, onMounted } from 'vue'
 import { NButton, NSpin, NText } from 'naive-ui'
 import { useSamplesStore } from '../stores/samples'
 import RotationEditor from './RotationEditor.vue'
 import CropEditor from './CropEditor.vue'
+import CaptionPanel from './CaptionPanel.vue'
 import type { CropBox } from '../api/samples'
 
 const props = defineProps<{
   sampleId: string
+}>()
+
+const emit = defineEmits<{
+  /** navigate: emitted when caption panel prev/next is clicked */
+  (e: 'navigate', direction: 'prev' | 'next'): void
 }>()
 
 const store = useSamplesStore()
@@ -197,6 +213,11 @@ async function onResetEdits(): Promise<void> {
   await store.resetEdits(props.sampleId)
   currentRotation.value = 0
   currentCrop.value = null
+}
+
+/** AC: Caption panel navigation in lightbox — bubble up to parent. */
+function onCaptionNavigate(direction: 'prev' | 'next'): void {
+  emit('navigate', direction)
 }
 
 onMounted(() => {
@@ -292,6 +313,15 @@ onMounted(() => {
 
 .saving-indicator {
   font-size: 12px;
+}
+
+.lightbox-captions {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--n-border-color, #444);
+  padding-left: 16px;
 }
 
 .lightbox-error {

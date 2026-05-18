@@ -97,6 +97,14 @@
           <n-text depth="3">Saving…</n-text>
         </div>
       </div>
+
+      <!-- Caption side panel -->
+      <div class="detail-captions" data-testid="sample-detail-captions">
+        <CaptionPanel
+          :sample-id="sampleId"
+          @navigate="onCaptionNavigate"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -114,15 +122,17 @@
  *
  * Route: /projects/:id/subjects/:sid/samples/:sampleId
  */
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { NButton, NSpin, NText } from 'naive-ui'
 import { useSamplesStore } from '../stores/samples'
 import RotationEditor from '../components/RotationEditor.vue'
 import CropEditor from '../components/CropEditor.vue'
+import CaptionPanel from '../components/CaptionPanel.vue'
 import type { CropBox } from '../api/samples'
 
 const route = useRoute()
+const router = useRouter()
 const store = useSamplesStore()
 
 const sampleId = computed(() => route.params.sampleId as string)
@@ -225,10 +235,69 @@ async function onResetEdits(): Promise<void> {
   currentCrop.value = null
 }
 
+/**
+ * AC: Next/prev navigation in caption panel.
+ * If multi-selected, cycles within the selection; otherwise cycles filtered list.
+ */
+function onCaptionNavigate(direction: 'prev' | 'next'): void {
+  const filtered = store.filteredSamples
+  if (filtered.length === 0) return
+
+  const pool = store.selectedCount > 1
+    ? filtered.filter((s) => store.selectedIds.has(s.id))
+    : filtered
+
+  if (pool.length === 0) return
+
+  const currentIdx = pool.findIndex((s) => s.id === sampleId.value)
+  let newIdx: number
+  if (currentIdx === -1) {
+    newIdx = 0
+  } else if (direction === 'next') {
+    newIdx = (currentIdx + 1) % pool.length
+  } else {
+    newIdx = (currentIdx - 1 + pool.length) % pool.length
+  }
+
+  const nextSample = pool[newIdx]
+  router.replace({
+    name: 'sample-detail',
+    params: {
+      id: route.params.id,
+      sid: route.params.sid,
+      sampleId: nextSample.id,
+    },
+  })
+}
+
+/**
+ * AC: Arrow key navigation for sample detail view.
+ * Left/right arrows navigate prev/next sample.
+ * Skip if a textarea/input is focused (let normal editing work).
+ */
+function onKeydown(event: KeyboardEvent): void {
+  // Don't intercept if user is typing in a textarea/input.
+  const target = event.target as HTMLElement
+  if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') return
+
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault()
+    onCaptionNavigate('prev')
+  } else if (event.key === 'ArrowRight') {
+    event.preventDefault()
+    onCaptionNavigate('next')
+  }
+}
+
 onMounted(() => {
   if (sampleId.value) {
     loadEditsForSample(sampleId.value)
   }
+  document.addEventListener('keydown', onKeydown, { capture: true })
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onKeydown, { capture: true })
 })
 
 // Re-load if the route param changes (e.g., navigating between samples).
@@ -298,6 +367,15 @@ watch(sampleId, (id) => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.detail-captions {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--n-border-color, #444);
+  padding-left: 16px;
 }
 
 .controls-header {

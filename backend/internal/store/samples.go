@@ -26,6 +26,19 @@ func NewSampleStore(db *sql.DB) *SampleStore {
 	return &SampleStore{db: db}
 }
 
+// GetProjectIDForSubject returns the project_id for a given subject_id.
+func (s *SampleStore) GetProjectIDForSubject(subjectID string) (string, error) {
+	row := s.db.QueryRow("SELECT project_id FROM subjects WHERE id = ?", subjectID)
+	var projectID string
+	if err := row.Scan(&projectID); err != nil {
+		if err == sql.ErrNoRows {
+			return "", ErrNotFound
+		}
+		return "", fmt.Errorf("get project id for subject: %w", err)
+	}
+	return projectID, nil
+}
+
 // ListBySubject returns all samples for a subject (no pagination per PRD §8.3).
 func (s *SampleStore) ListBySubject(subjectID string) ([]*model.Sample, error) {
 	rows, err := s.db.Query(`
