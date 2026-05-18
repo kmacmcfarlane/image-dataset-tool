@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-030: DatasetWriter interface + edit-ops materializer
+- `DatasetWriter` interface: `Write(ctx, opts) → (*ExportResult, error)` in new `internal/export` package
+- `EditMaterializer`: reads raw image + edits, applies rotation then crop; no edits = raw bytes copied as-is (no re-encoding)
+- Free-angle rotation support via bilinear interpolation; cardinal rotations (0/90/180/270) use fast pixel-swap paths
+- `ExportOptions` and `ExportResult` model types for export configuration and outcome summary
+- 25 unit tests covering imageops (cardinal + free-angle rotation, crop, combined) and materializer (raw copy, rotation, crop, error cases)
+
 ### S-035: Job history view: timing, progress, per-item messages
 - Three new API endpoints: paginated job list with type/status filters, job detail with timing and item counts, paginated job messages with level filter (default: warning, uses >= semantics)
 - `/jobs` frontend view with SSE-driven real-time progress bars and error counts; expandable message panel with error/warning/info level toggle
