@@ -60,10 +60,7 @@ func (s *JobStore) ListJobs(f JobListFilter) ([]*model.JobRun, int64, error) {
 	if limit <= 0 {
 		limit = 20
 	}
-	offset := f.Offset
-	if offset < 0 {
-		offset = 0
-	}
+	offset := max(f.Offset, 0)
 
 	pageArgs := append(args, limit, offset)
 	rows, err := s.db.Query(
@@ -190,10 +187,7 @@ func (s *JobStore) ListJobMessages(f JobMessageFilter) ([]*model.JobMessage, int
 	if limit <= 0 {
 		limit = 50
 	}
-	offset := f.Offset
-	if offset < 0 {
-		offset = 0
-	}
+	offset := max(f.Offset, 0)
 
 	pageArgs := append(args, limit, offset)
 	rows, err := s.db.Query(

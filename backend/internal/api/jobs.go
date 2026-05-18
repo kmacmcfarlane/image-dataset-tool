@@ -58,6 +58,7 @@ func (s *JobsService) Get(_ context.Context, p *jobs.GetPayload) (*jobs.JobDetai
 		if errors.Is(err, service.ErrNotFound) {
 			return nil, jobs.MakeNotFound(fmt.Errorf("job %q not found", p.ID))
 		}
+		logrus.WithError(err).Error("Failed to get job")
 		return nil, fmt.Errorf("get job: %w", err)
 	}
 
