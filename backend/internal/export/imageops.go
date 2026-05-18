@@ -36,8 +36,8 @@ func rotate90(src image.Image) image.Image {
 	b := src.Bounds()
 	w, h := b.Dx(), b.Dy()
 	dst := image.NewRGBA(image.Rect(0, 0, h, w))
-	for y := 0; y < w; y++ {
-		for x := 0; x < h; x++ {
+	for y := range w {
+		for x := range h {
 			dst.Set(x, y, src.At(b.Min.X+(w-1-y), b.Min.Y+x))
 		}
 	}
@@ -49,8 +49,8 @@ func rotate180(src image.Image) image.Image {
 	b := src.Bounds()
 	w, h := b.Dx(), b.Dy()
 	dst := image.NewRGBA(image.Rect(0, 0, w, h))
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := range h {
+		for x := range w {
 			dst.Set(x, y, src.At(b.Min.X+(w-1-x), b.Min.Y+(h-1-y)))
 		}
 	}
@@ -62,8 +62,8 @@ func rotate270(src image.Image) image.Image {
 	b := src.Bounds()
 	w, h := b.Dx(), b.Dy()
 	dst := image.NewRGBA(image.Rect(0, 0, h, w))
-	for y := 0; y < w; y++ {
-		for x := 0; x < h; x++ {
+	for y := range w {
+		for x := range h {
 			dst.Set(x, y, src.At(b.Min.X+y, b.Min.Y+(h-1-x)))
 		}
 	}
@@ -98,8 +98,8 @@ func rotateFreeAngle(src image.Image, degrees float64) image.Image {
 
 	// For each destination pixel, find the corresponding source pixel
 	// using inverse rotation.
-	for dy := 0; dy < newH; dy++ {
-		for dx := 0; dx < newW; dx++ {
+	for dy := range newH {
+		for dx := range newW {
 			// Offset from destination center.
 			ox := float64(dx) - dstCX + 0.5
 			oy := float64(dy) - dstCY + 0.5
@@ -186,8 +186,8 @@ func cropImage(src image.Image, box image.Rectangle) image.Image {
 	w := box.Dx()
 	h := box.Dy()
 	dst := image.NewRGBA(image.Rect(0, 0, w, h))
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := range h {
+		for x := range w {
 			dst.Set(x, y, src.At(box.Min.X+x, box.Min.Y+y))
 		}
 	}
