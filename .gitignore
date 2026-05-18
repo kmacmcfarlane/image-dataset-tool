@@ -71,3 +71,7 @@ frontend/test-results/
 # Python cache
 __pycache__/
 *.pyc
+
+# Spike POC generated files
+docs/spike-poc/*/testdata/
+docs/spike-poc/*/output/
