@@ -5,13 +5,9 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 ### S-022: Research spike — auto-correction helpers
-- Recommendation document at `docs/auto-correction-spike.md` evaluating three helpers: solid-color border removal, gradient border detection, photo-of-artwork correction
-- Each assessed on accuracy, Go library availability, CPU cost, and integration complexity
-- POC code in `docs/spike-poc/auto-correction/` with 18 synthetic test images (6 per category)
-- Solid-color border removal recommended as build-first (stdlib-only, <1ms, 5/6 accuracy)
-- Gradient detection recommended as Phase 2 (needs tuning, 2/6 accuracy with basic approach)
-- Photo-of-artwork correction deferred (no viable pure-Go solution, CGo conflicts with project constraints)
-- CPU benchmarks from 640x480 to 4K resolution; dependency and supply chain risk analysis
+- Recommendation doc at `docs/auto-correction-spike.md` with POC code in `docs/spike-poc/auto-correction/`
+- Solid-color border removal recommended as build-first: stdlib-only, <1ms, 5/6 accuracy on synthetic images
+- Gradient detection deferred to Phase 2 (needs tuning); photo-of-artwork correction deferred (no viable pure-Go solution without CGo)
 
 ### S-034: Zip stream download via Goa native streaming
 - `POST /v1/exports/zip` streams a zip archive on-the-fly via `io.Pipe`; one sample materialized at a time for bounded memory (1000+ images without OOM)
