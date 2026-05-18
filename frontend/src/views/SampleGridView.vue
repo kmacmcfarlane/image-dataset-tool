@@ -117,14 +117,14 @@
       </div>
     </n-spin>
 
-    <!-- Lightbox modal: double-click a card to open it with full edit controls -->
+    <!-- Lightbox modal: double-click or Enter on focused card to open with full edit controls -->
     <n-modal
       v-model:show="lightboxOpen"
       data-testid="sample-lightbox"
       :mask-closable="true"
       preset="card"
       style="width: 90vw; max-width: 1200px; height: 80vh;"
-      :title="`Sample ${lightboxSampleId ?? ''}`"
+      :title="lightboxTitle"
       @after-leave="onLightboxClose"
     >
       <LightboxEditor
@@ -151,7 +151,7 @@
  * - Escape: Clear selection
  * - Double-click card: Open lightbox with full edit controls
  */
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
 import { NButton, NCheckbox, NDivider, NEmpty, NModal, NSpace, NSpin, NText } from 'naive-ui'
 import { useSamplesStore } from '../stores/samples'
@@ -166,6 +166,18 @@ const scrollContainer = ref<HTMLElement | null>(null)
 // Lightbox state.
 const lightboxOpen = ref(false)
 const lightboxSampleId = ref<string | null>(null)
+
+/** Lightbox title showing sample ID and navigation position. */
+const lightboxTitle = computed(() => {
+  if (!lightboxSampleId.value) return 'Lightbox'
+  const filtered = store.filteredSamples
+  const pool = store.selectedCount > 1
+    ? filtered.filter((s) => store.selectedIds.has(s.id))
+    : filtered
+  const idx = pool.findIndex((s) => s.id === lightboxSampleId.value)
+  if (idx === -1 || pool.length === 0) return `Sample ${lightboxSampleId.value}`
+  return `Sample ${idx + 1} / ${pool.length}`
+})
 
 // Virtual scroll configuration.
 const CARD_SIZE = 180 // px (card width/height including gap)
@@ -280,8 +292,19 @@ function onLightboxNavigate(direction: 'prev' | 'next'): void {
 /**
  * Capture-phase keyboard handler (per DEVELOPMENT_PRACTICES §4.10).
  * Handles all grid-level keyboard shortcuts.
+ * Enter: open lightbox for focused sample.
  */
 function onKeydown(event: KeyboardEvent): void {
+  // AC: Enter opens lightbox for focused sample
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    if (store.focusedId) {
+      lightboxSampleId.value = store.focusedId
+      lightboxOpen.value = true
+    }
+    return
+  }
+
   // AC: Ctrl+A select all; Ctrl+Shift+A deselect
   if ((event.ctrlKey || event.metaKey) && event.key === 'a') {
     event.preventDefault()
@@ -336,6 +359,69 @@ function onKeydown(event: KeyboardEvent): void {
   }
 }
 
+/**
+ * Capture-phase document keyboard handler active only when lightbox is open.
+ * Per DEVELOPMENT_PRACTICES §4.10: capture-phase + stopImmediatePropagation
+ * ensures lightbox intercepts keys before the grid handler.
+ *
+ * AC: Arrow keys navigate; K/R keep/reject; Escape closes lightbox.
+ */
+function onLightboxKeydown(event: KeyboardEvent): void {
+  // Only intercept when lightbox is actually open
+  if (!lightboxOpen.value) return
+
+  // AC: Arrow keys navigate lightbox
+  if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    onLightboxNavigate(event.key === 'ArrowLeft' ? 'prev' : 'next')
+    return
+  }
+
+  // AC: K/R keep/reject inside lightbox — synced with grid state
+  if (event.key === 'k' || event.key === 'K') {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    onLightboxStatus('kept')
+    return
+  }
+
+  if (event.key === 'r' || event.key === 'R') {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    onLightboxStatus('rejected')
+    return
+  }
+
+  // AC: Escape closes lightbox
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    lightboxOpen.value = false
+    return
+  }
+}
+
+/**
+ * Apply keep/reject status from within the lightbox.
+ * If multi-selected, applies to the selection; otherwise applies to the current lightbox sample.
+ * After applying, navigates to next sample in the lightbox pool.
+ */
+async function onLightboxStatus(status: 'kept' | 'rejected'): Promise<void> {
+  if (!lightboxSampleId.value) return
+
+  // Determine which IDs to act on.
+  const filtered = store.filteredSamples
+  const ids: string[] = store.selectedCount > 1
+    ? filtered.filter((s) => store.selectedIds.has(s.id)).map((s) => s.id)
+    : [lightboxSampleId.value]
+
+  await store.applyStatusToIds(ids, status)
+
+  // Navigate to next sample in the lightbox pool.
+  onLightboxNavigate('next')
+}
+
 let resizeObserver: ResizeObserver | null = null
 
 onMounted(() => {
@@ -350,6 +436,17 @@ onUnmounted(() => {
   if (resizeObserver) {
     resizeObserver.disconnect()
     resizeObserver = null
+  }
+  // Clean up capture-phase listener if lightbox was open when unmounted.
+  document.removeEventListener('keydown', onLightboxKeydown, true)
+})
+
+// AC: Register/unregister capture-phase lightbox keyboard handler (DEVELOPMENT_PRACTICES §4.10).
+watchEffect(() => {
+  if (lightboxOpen.value) {
+    document.addEventListener('keydown', onLightboxKeydown, true)
+  } else {
+    document.removeEventListener('keydown', onLightboxKeydown, true)
   }
 })
 

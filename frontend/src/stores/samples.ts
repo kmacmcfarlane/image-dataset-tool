@@ -290,18 +290,29 @@ export const useSamplesStore = defineStore('samples', () => {
     // Determine advance target before changing state.
     const advanceTarget = computeAdvanceTarget(ids)
 
+    await applyStatusToIds(ids, status)
+
+    // Auto-advance.
+    clearSelection()
+    if (advanceTarget) {
+      selectSample(advanceTarget)
+    }
+  }
+
+  /**
+   * Apply status to an explicit list of sample IDs (used by lightbox keyboard shortcuts).
+   * Optimistically updates local state, then calls API.
+   * Does NOT auto-advance focus — caller handles navigation.
+   */
+  async function applyStatusToIds(ids: string[], status: 'kept' | 'rejected' | 'pending'): Promise<void> {
+    if (ids.length === 0) return
+
     // Optimistic update.
     for (const id of ids) {
       const sample = samplesMap.value.get(id)
       if (sample) {
         samplesMap.value.set(id, { ...sample, status, updated_at: new Date().toISOString() })
       }
-    }
-
-    // Auto-advance.
-    clearSelection()
-    if (advanceTarget) {
-      selectSample(advanceTarget)
     }
 
     // API call.
@@ -478,6 +489,7 @@ export const useSamplesStore = defineStore('samples', () => {
     clearSelection,
     moveFocus,
     applyStatus,
+    applyStatusToIds,
     loadEdits,
     saveEditsDebounced,
     saveEditsImmediate,

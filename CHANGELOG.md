@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-024: Lightbox: full-size preview with keyboard shortcuts
+- Enter opens full-size lightbox for focused sample; Escape closes it; arrow keys navigate prev/next within selection pool or filtered list
+- K/R keep/reject inside lightbox mirrors grid behavior, synced via `applyStatusToIds` store action (no auto-advance side effects)
+- Caption panel, rotate controls, and crop controls visible inside lightbox (reuses existing LightboxEditor from S-020/S-021)
+
 ### S-023: Caption side panel: view/edit captions, navigation
 - New `GET/PUT /v1/samples/{id}/captions` endpoints; manual edits auto-create a "manual" pseudo-study, preserving original study captions
 - `CaptionPanel.vue` integrated into sample detail and lightbox views with study-grouped display, resizable textarea editing, and debounced auto-save
