@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	"log/slog"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
@@ -76,14 +76,14 @@ func (h *CaptionsHandler) ServeListCaptions(w http.ResponseWriter, r *http.Reque
 			respondError(w, http.StatusNotFound, "sample not found")
 			return
 		}
-		logrus.WithError(err).WithField("sample_id", sampleID).Error("Failed to get sample")
+		slog.Error("Failed to get sample", "error", err, "sample_id", sampleID)
 		respondError(w, http.StatusInternalServerError, "failed to get sample")
 		return
 	}
 
 	captions, err := h.captionStore.ListBySampleID(sampleID)
 	if err != nil {
-		logrus.WithError(err).WithField("sample_id", sampleID).Error("Failed to list captions")
+		slog.Error("Failed to list captions", "error", err, "sample_id", sampleID)
 		respondError(w, http.StatusInternalServerError, "failed to list captions")
 		return
 	}
@@ -97,7 +97,7 @@ func (h *CaptionsHandler) ServeListCaptions(w http.ResponseWriter, r *http.Reque
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logrus.WithError(err).Error("Failed to encode captions response")
+		slog.Error("Failed to encode captions response", "error", err)
 	}
 }
 
@@ -122,7 +122,7 @@ func (h *CaptionsHandler) ServeSaveCaption(w http.ResponseWriter, r *http.Reques
 			respondError(w, http.StatusNotFound, "sample not found")
 			return
 		}
-		logrus.WithError(err).WithField("sample_id", sampleID).Error("Failed to get sample")
+		slog.Error("Failed to get sample", "error", err, "sample_id", sampleID)
 		respondError(w, http.StatusInternalServerError, "failed to get sample")
 		return
 	}
@@ -134,14 +134,14 @@ func (h *CaptionsHandler) ServeSaveCaption(w http.ResponseWriter, r *http.Reques
 		// Need to find the project_id for this sample's subject.
 		projectID, err := h.resolveProjectID(sample.SubjectID)
 		if err != nil {
-			logrus.WithError(err).WithField("subject_id", sample.SubjectID).Error("Failed to resolve project")
+			slog.Error("Failed to resolve project", "error", err, "subject_id", sample.SubjectID)
 			respondError(w, http.StatusInternalServerError, "failed to resolve project")
 			return
 		}
 
 		manualStudy, err := h.captionStore.GetOrCreateManualStudy(projectID)
 		if err != nil {
-			logrus.WithError(err).Error("Failed to get/create manual study")
+			slog.Error("Failed to get/create manual study", "error", err)
 			respondError(w, http.StatusInternalServerError, "failed to create manual study")
 			return
 		}
@@ -165,7 +165,7 @@ func (h *CaptionsHandler) ServeSaveCaption(w http.ResponseWriter, r *http.Reques
 			respondError(w, http.StatusNotFound, "sample or study not found")
 			return
 		}
-		logrus.WithError(err).WithField("sample_id", sampleID).Error("Failed to save caption")
+		slog.Error("Failed to save caption", "error", err, "sample_id", sampleID)
 		respondError(w, http.StatusInternalServerError, "failed to save caption")
 		return
 	}
@@ -173,7 +173,7 @@ func (h *CaptionsHandler) ServeSaveCaption(w http.ResponseWriter, r *http.Reques
 	// Fetch the study for the response.
 	captions, err := h.captionStore.ListBySampleID(sampleID)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to list captions after save")
+		slog.Error("Failed to list captions after save", "error", err)
 		respondError(w, http.StatusInternalServerError, "failed to list captions")
 		return
 	}
@@ -189,7 +189,7 @@ func (h *CaptionsHandler) ServeSaveCaption(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logrus.WithError(err).Error("Failed to encode caption response")
+		slog.Error("Failed to encode caption response", "error", err)
 	}
 }
 

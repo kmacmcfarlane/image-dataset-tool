@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"os"
 
-	logrus "github.com/sirupsen/logrus"
+	"log/slog"
 
 	health "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/health"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/crypto"
@@ -39,7 +39,7 @@ func NewHealthService(db *sql.DB, checker HealthChecker, dataDir, keyPath string
 // Returns 200 with HealthResult if all healthy, or the HealthResult as an
 // "unhealthy" error (503) if any subsystem is failing.
 func (s *HealthService) Check(_ context.Context) (*health.HealthResult, error) {
-	log := logrus.WithField("component", "health")
+	log := slog.With("component", "health")
 
 	subs := make(map[string]*health.SubsystemStatus, 4)
 	allOK := true
@@ -75,7 +75,7 @@ func (s *HealthService) Check(_ context.Context) (*health.HealthResult, error) {
 		}, nil
 	}
 
-	log.WithField("subsystems", subs).Warn("Health check failed")
+	log.Warn("Health check failed", "subsystems", subs)
 	// Return as error so Goa maps to 503.
 	return nil, &health.HealthResult{
 		Status:     "unhealthy",

@@ -4,10 +4,9 @@ package datadir
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
-
-	logrus "github.com/sirupsen/logrus"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/crypto"
 )
@@ -38,7 +37,7 @@ func Resolve() string {
 func Bootstrap() (string, error) {
 	dir := Resolve()
 
-	logrus.WithField("path", dir).Info("Bootstrapping data directory")
+	slog.Info("Bootstrapping data directory", "path", dir)
 
 	// Create root data dir.
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -53,7 +52,7 @@ func Bootstrap() (string, error) {
 		}
 	}
 
-	logrus.Info("Data directory bootstrapped successfully")
+	slog.Info("Data directory bootstrapped successfully")
 	return dir, nil
 }
 
@@ -76,13 +75,13 @@ func EnsureSecretKey(dataDir string) error {
 		return fmt.Errorf("stat secret.key: %w", err)
 	}
 
-	logrus.WithField("path", keyPath).Warn("secret.key not found — generating a new key for development")
+	slog.Warn("secret.key not found — generating a new key for development", "path", keyPath)
 
 	if err := crypto.GenerateKey(keyPath); err != nil {
 		return fmt.Errorf("auto-generate secret.key: %w", err)
 	}
 
-	logrus.WithField("path", keyPath).Info("Generated new secret.key")
+	slog.Info("Generated new secret.key", "path", keyPath)
 	return nil
 }
 

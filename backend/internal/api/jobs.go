@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	logrus "github.com/sirupsen/logrus"
+	"log/slog"
 
 	jobs "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/jobs"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
@@ -37,7 +37,7 @@ func (s *JobsService) List(_ context.Context, p *jobs.JobListPayload) (*jobs.Job
 
 	list, total, err := s.svc.ListJobs(params)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to list jobs")
+		slog.Error("Failed to list jobs", "error", err)
 		return nil, fmt.Errorf("list jobs: %w", err)
 	}
 
@@ -58,7 +58,7 @@ func (s *JobsService) Get(_ context.Context, p *jobs.GetPayload) (*jobs.JobDetai
 		if errors.Is(err, service.ErrNotFound) {
 			return nil, jobs.MakeNotFound(fmt.Errorf("job %q not found", p.ID))
 		}
-		logrus.WithError(err).Error("Failed to get job")
+		slog.Error("Failed to get job", "error", err)
 		return nil, fmt.Errorf("get job: %w", err)
 	}
 
@@ -99,7 +99,7 @@ func (s *JobsService) ListMessages(_ context.Context, p *jobs.JobMessageListPayl
 		if errors.Is(err, service.ErrNotFound) {
 			return nil, jobs.MakeNotFound(fmt.Errorf("job %q not found", p.ID))
 		}
-		logrus.WithError(err).Error("Failed to list job messages")
+		slog.Error("Failed to list job messages", "error", err)
 		return nil, fmt.Errorf("list job messages: %w", err)
 	}
 

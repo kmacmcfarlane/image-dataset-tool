@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"unicode/utf8"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	logrus "github.com/sirupsen/logrus"
 
 	queues "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/queues"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/natsutil"
@@ -26,7 +26,7 @@ func NewQueuesService(js jetstream.JetStream) *QueuesService {
 
 // Stats returns per-consumer queue statistics.
 func (s *QueuesService) Stats(ctx context.Context) (*queues.QueueStatsResult, error) {
-	log := logrus.WithField("component", "queues-api")
+	log := slog.With("component", "queues-api")
 
 	consumers := []struct {
 		name   string
@@ -46,13 +46,13 @@ func (s *QueuesService) Stats(ctx context.Context) (*queues.QueueStatsResult, er
 	for _, c := range consumers {
 		cons, err := s.js.Consumer(ctx, natsutil.StreamName, c.name)
 		if err != nil {
-			log.WithError(err).WithField("consumer", c.name).Warn("Failed to get consumer")
+			log.Warn("Failed to get consumer", "error", err, "consumer", c.name)
 			continue
 		}
 
 		info, err := cons.Info(ctx)
 		if err != nil {
-			log.WithError(err).WithField("consumer", c.name).Warn("Failed to get consumer info")
+			log.Warn("Failed to get consumer info", "error", err, "consumer", c.name)
 			continue
 		}
 
@@ -72,10 +72,7 @@ func (s *QueuesService) Stats(ctx context.Context) (*queues.QueueStatsResult, er
 
 // Peek returns messages from a queue subject without consuming them.
 func (s *QueuesService) Peek(ctx context.Context, p *queues.PeekPayload) (*queues.PeekResult, error) {
-	log := logrus.WithFields(logrus.Fields{
-		"component": "queues-api",
-		"subject":   p.Subject,
-	})
+	log := slog.With("component", "queues-api", "subject", p.Subject)
 
 	offset := 0
 	if p.Offset != nil {
@@ -154,12 +151,12 @@ func (s *QueuesService) Peek(ctx context.Context, p *queues.PeekPayload) (*queue
 		collected++
 	}
 
-	log.WithFields(logrus.Fields{
-		"total":    total,
-		"returned": len(messages),
-		"offset":   offset,
-		"limit":    limit,
-	}).Debug("Peeked messages")
+	log.Debug("Peeked messages",
+		"total", total,
+		"returned", len(messages),
+		"offset", offset,
+		"limit", limit,
+	)
 
 	return &queues.PeekResult{
 		Messages: messages,
@@ -169,11 +166,7 @@ func (s *QueuesService) Peek(ctx context.Context, p *queues.PeekPayload) (*queue
 
 // Retry redelivers a specific message to its original subject.
 func (s *QueuesService) Retry(ctx context.Context, p *queues.RetryPayload) error {
-	log := logrus.WithFields(logrus.Fields{
-		"component": "queues-api",
-		"subject":   p.Subject,
-		"sequence":  p.Sequence,
-	})
+	log := slog.With("component", "queues-api", "subject", p.Subject, "sequence", p.Sequence)
 
 	// Get the stream.
 	stream, err := s.js.Stream(ctx, natsutil.StreamName)
@@ -220,21 +213,17 @@ func (s *QueuesService) Retry(ctx context.Context, p *queues.RetryPayload) error
 	// Delete the original message from the stream.
 	err = stream.DeleteMsg(ctx, p.Sequence)
 	if err != nil {
-		log.WithError(err).Warn("Failed to delete original message after retry")
+		log.Warn("Failed to delete original message after retry", "error", err)
 		// Non-fatal: message was already republished.
 	}
 
-	log.WithField("original_subject", originalSubject).Info("Message retried")
+	log.Info("Message retried", "original_subject", originalSubject)
 	return nil
 }
 
 // DeleteMessage deletes a specific message from the stream.
 func (s *QueuesService) DeleteMessage(ctx context.Context, p *queues.DeleteMessagePayload) error {
-	log := logrus.WithFields(logrus.Fields{
-		"component": "queues-api",
-		"subject":   p.Subject,
-		"sequence":  p.Sequence,
-	})
+	log := slog.With("component", "queues-api", "subject", p.Subject, "sequence", p.Sequence)
 
 	stream, err := s.js.Stream(ctx, natsutil.StreamName)
 	if err != nil {
@@ -252,10 +241,7 @@ func (s *QueuesService) DeleteMessage(ctx context.Context, p *queues.DeleteMessa
 
 // Purge removes all messages from a specific subject in the stream.
 func (s *QueuesService) Purge(ctx context.Context, p *queues.PurgePayload) error {
-	log := logrus.WithFields(logrus.Fields{
-		"component": "queues-api",
-		"subject":   p.Subject,
-	})
+	log := slog.With("component", "queues-api", "subject", p.Subject)
 
 	stream, err := s.js.Stream(ctx, natsutil.StreamName)
 	if err != nil {

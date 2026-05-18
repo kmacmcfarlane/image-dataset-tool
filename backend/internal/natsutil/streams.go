@@ -3,10 +3,10 @@ package natsutil
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	logrus "github.com/sirupsen/logrus"
 )
 
 const (
@@ -33,7 +33,7 @@ func (s *Server) setupStream() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	log := logrus.WithField("component", "nats")
+	log := slog.With("component", "nats")
 
 	// Create or update the stream.
 	streamCfg := jetstream.StreamConfig{
@@ -56,7 +56,7 @@ func (s *Server) setupStream() error {
 		return fmt.Errorf("create stream %s: %w", StreamName, err)
 	}
 
-	log.WithField("stream", StreamName).Info("Stream configured")
+	log.Info("Stream configured", "stream", StreamName)
 
 	// Create durable pull consumers.
 	consumers := []struct {
@@ -90,12 +90,12 @@ func (s *Server) setupStream() error {
 			return fmt.Errorf("create consumer %s: %w", c.name, err)
 		}
 
-		log.WithFields(logrus.Fields{
-			"consumer":       c.name,
-			"filter":         c.filter,
-			"max_ack_pending": c.cfg.MaxAckPending,
-			"ack_wait":       c.cfg.AckWait,
-		}).Info("Consumer configured")
+		log.Info("Consumer configured",
+			"consumer", c.name,
+			"filter", c.filter,
+			"max_ack_pending", c.cfg.MaxAckPending,
+			"ack_wait", c.cfg.AckWait,
+		)
 	}
 
 	return nil

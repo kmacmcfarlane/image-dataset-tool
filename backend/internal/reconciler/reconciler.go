@@ -6,12 +6,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
-	logrus "github.com/sirupsen/logrus"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/fileformat"
 )
@@ -22,7 +22,7 @@ import (
 //
 // The reconciler is idempotent: running twice produces identical DB state.
 func Run(db *sql.DB, dataDir string) error {
-	log := logrus.WithField("component", "reconciler")
+	log := slog.With("component", "reconciler")
 	log.Info("Starting filesystem reconciliation")
 
 	projectsDir := filepath.Join(dataDir, "projects")
@@ -39,11 +39,11 @@ func Run(db *sql.DB, dataDir string) error {
 		return fmt.Errorf("scan filesystem: %w", err)
 	}
 
-	log.WithFields(logrus.Fields{
-		"projects": len(diskProjects),
-		"subjects": len(diskSubjects),
-		"samples":  len(diskSamples),
-	}).Info("Filesystem scan complete")
+	log.Info("Filesystem scan complete",
+		"projects", len(diskProjects),
+		"subjects", len(diskSubjects),
+		"samples", len(diskSamples),
+	)
 
 	// Phase 2: Reconcile projects.
 	if err := reconcileProjects(db, diskProjects); err != nil {
@@ -82,7 +82,7 @@ type diskSample struct {
 
 // scanFilesystem walks the projects directory and collects all valid manifests.
 // Malformed JSON is logged as a warning and skipped (file is NOT deleted).
-func scanFilesystem(log *logrus.Entry, projectsDir string) (
+func scanFilesystem(log *slog.Logger, projectsDir string) (
 	[]diskProject, []diskSubject, []diskSample, error,
 ) {
 	var projects []diskProject
@@ -106,13 +106,10 @@ func scanFilesystem(log *logrus.Entry, projectsDir string) (
 		projManifest, err := fileformat.ReadProjectManifest(projManifestPath)
 		if err != nil {
 			if os.IsNotExist(err) {
-				log.WithField("path", projManifestPath).Warn("Project directory missing manifest.json, skipping")
+				log.Warn("Project directory missing manifest.json, skipping", "path", projManifestPath)
 				continue
 			}
-			log.WithFields(logrus.Fields{
-				"path":  projManifestPath,
-				"error": err.Error(),
-			}).Warn("Malformed project manifest, skipping")
+			log.Warn("Malformed project manifest, skipping", "path", projManifestPath, "error", err.Error())
 			continue
 		}
 
@@ -126,10 +123,7 @@ func scanFilesystem(log *logrus.Entry, projectsDir string) (
 
 		subjectEntries, err := os.ReadDir(subjectsDir)
 		if err != nil {
-			log.WithFields(logrus.Fields{
-				"path":  subjectsDir,
-				"error": err.Error(),
-			}).Warn("Cannot read subjects directory, skipping")
+			log.Warn("Cannot read subjects directory, skipping", "path", subjectsDir, "error", err.Error())
 			continue
 		}
 
@@ -144,13 +138,10 @@ func scanFilesystem(log *logrus.Entry, projectsDir string) (
 			subjManifest, err := fileformat.ReadSubjectManifest(subjManifestPath)
 			if err != nil {
 				if os.IsNotExist(err) {
-					log.WithField("path", subjManifestPath).Warn("Subject directory missing manifest.json, skipping")
+					log.Warn("Subject directory missing manifest.json, skipping", "path", subjManifestPath)
 					continue
 				}
-				log.WithFields(logrus.Fields{
-					"path":  subjManifestPath,
-					"error": err.Error(),
-				}).Warn("Malformed subject manifest, skipping")
+				log.Warn("Malformed subject manifest, skipping", "path", subjManifestPath, "error", err.Error())
 				continue
 			}
 
@@ -164,10 +155,7 @@ func scanFilesystem(log *logrus.Entry, projectsDir string) (
 
 			sampleEntries, err := os.ReadDir(samplesDir)
 			if err != nil {
-				log.WithFields(logrus.Fields{
-					"path":  samplesDir,
-					"error": err.Error(),
-				}).Warn("Cannot read samples directory, skipping")
+				log.Warn("Cannot read samples directory, skipping", "path", samplesDir, "error", err.Error())
 				continue
 			}
 
@@ -184,10 +172,7 @@ func scanFilesystem(log *logrus.Entry, projectsDir string) (
 				samplePath := filepath.Join(samplesDir, name)
 				sampleMeta, err := fileformat.ReadSampleMetadata(samplePath)
 				if err != nil {
-					log.WithFields(logrus.Fields{
-						"path":  samplePath,
-						"error": err.Error(),
-					}).Warn("Malformed sample metadata, skipping")
+					log.Warn("Malformed sample metadata, skipping", "path", samplePath, "error", err.Error())
 					continue
 				}
 
@@ -429,10 +414,10 @@ func reconcileCaptions(db *sql.DB, sampleID string, captions map[string]fileform
 			if studyExists == 0 {
 				// Study doesn't exist in DB — skip this caption (study may be reconciled later
 				// or was never created). Log at debug level.
-				logrus.WithFields(logrus.Fields{
-					"sample_id": sampleID,
-					"study_id":  cap.StudyID,
-				}).Debug("Skipping caption: study not found in DB")
+				slog.Debug("Skipping caption: study not found in DB",
+					"sample_id", sampleID,
+					"study_id", cap.StudyID,
+				)
 				continue
 			}
 

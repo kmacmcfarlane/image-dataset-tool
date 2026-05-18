@@ -4,11 +4,11 @@ package service
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/google/uuid"
-	logrus "github.com/sirupsen/logrus"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/fileformat"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
@@ -90,7 +90,7 @@ func (s *ProjectService) Create(name, description string) (*model.Project, error
 	// DB insert after manifest.
 	if err := s.store.Create(p); err != nil {
 		// Manifest is still valid; reconciler will recover on next startup.
-		logrus.WithError(err).WithField("slug", slug).Warn("DB insert failed after manifest write; reconciler will recover")
+		slog.Warn("DB insert failed after manifest write; reconciler will recover", "error", err, "slug", slug)
 		return nil, fmt.Errorf("store project: %w", err)
 	}
 
@@ -98,13 +98,10 @@ func (s *ProjectService) Create(name, description string) (*model.Project, error
 	manifest.CreatedAt = p.CreatedAt
 	manifest.UpdatedAt = p.UpdatedAt
 	if err := fileformat.WriteProjectManifest(manifestPath, manifest); err != nil {
-		logrus.WithError(err).Warn("Failed to update manifest with timestamps; non-fatal")
+		slog.Warn("Failed to update manifest with timestamps; non-fatal", "error", err)
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"id":   p.ID,
-		"slug": p.Slug,
-	}).Info("Project created")
+	slog.Info("Project created", "id", p.ID, "slug", p.Slug)
 
 	return p, nil
 }
@@ -159,7 +156,7 @@ func (s *ProjectService) Update(id string, name *string, description *string) (*
 		UpdatedAt:   p.UpdatedAt,
 	}
 	if err := fileformat.WriteProjectManifest(manifestPath, manifest); err != nil {
-		logrus.WithError(err).Warn("Failed to update manifest after project update; non-fatal")
+		slog.Warn("Failed to update manifest after project update; non-fatal", "error", err)
 	}
 
 	return p, nil
@@ -187,16 +184,13 @@ func (s *ProjectService) Delete(id string, hardDelete bool) error {
 	if hardDelete {
 		projectDir := filepath.Join(s.dataDir, "projects", p.Slug)
 		if err := os.RemoveAll(projectDir); err != nil {
-			logrus.WithError(err).WithField("dir", projectDir).Warn("Failed to remove project directory")
+			slog.Warn("Failed to remove project directory", "error", err, "dir", projectDir)
 		} else {
-			logrus.WithField("dir", projectDir).Info("Project directory removed")
+			slog.Info("Project directory removed", "dir", projectDir)
 		}
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"id":          p.ID,
-		"hard_delete": hardDelete,
-	}).Info("Project deleted")
+	slog.Info("Project deleted", "id", p.ID, "hard_delete", hardDelete)
 
 	return nil
 }

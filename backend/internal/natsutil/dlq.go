@@ -3,11 +3,11 @@ package natsutil
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	logrus "github.com/sirupsen/logrus"
 )
 
 // ShouldDLQ returns true if the message has reached its max delivery count.
@@ -23,7 +23,7 @@ func ShouldDLQ(msg jetstream.Msg, maxDeliver int) bool {
 // RouteToDLQ publishes the message payload to the DLQ subject with
 // original metadata in headers, then ACKs the original message.
 func RouteToDLQ(ctx context.Context, js jetstream.JetStream, msg jetstream.Msg) error {
-	log := logrus.WithField("component", "nats-dlq")
+	log := slog.With("component", "nats-dlq")
 
 	md, err := msg.Metadata()
 	if err != nil {
@@ -61,12 +61,12 @@ func RouteToDLQ(ctx context.Context, js jetstream.JetStream, msg jetstream.Msg) 
 		return fmt.Errorf("ack original message: %w", err)
 	}
 
-	log.WithFields(logrus.Fields{
-		"original_subject": msg.Subject(),
-		"stream":           md.Stream,
-		"consumer":         md.Consumer,
-		"num_delivered":    md.NumDelivered,
-	}).Info("Message routed to DLQ")
+	log.Info("Message routed to DLQ",
+		"original_subject", msg.Subject(),
+		"stream", md.Stream,
+		"consumer", md.Consumer,
+		"num_delivered", md.NumDelivered,
+	)
 
 	return nil
 }

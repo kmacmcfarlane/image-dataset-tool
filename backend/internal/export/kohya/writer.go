@@ -8,10 +8,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
-
-	logrus "github.com/sirupsen/logrus"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/export"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
@@ -23,7 +22,7 @@ import (
 type Writer struct {
 	db           *sql.DB
 	materializer *export.EditMaterializer
-	logger       *logrus.Entry
+	logger       *slog.Logger
 }
 
 // NewWriter creates a new kohya-ss Writer.
@@ -33,7 +32,7 @@ func NewWriter(db *sql.DB, dataDir string) *Writer {
 	return &Writer{
 		db:           db,
 		materializer: export.NewEditMaterializer(dataDir),
-		logger:       logrus.WithField("component", "kohya_writer"),
+		logger:       slog.With("component", "kohya_writer"),
 	}
 }
 
@@ -43,12 +42,12 @@ func NewWriter(db *sql.DB, dataDir string) *Writer {
 // a sample in that study, a paired .txt file is written; otherwise the .txt is
 // omitted. Returns a summary of the export run.
 func (w *Writer) Write(ctx context.Context, opts model.ExportOptions) (*model.ExportResult, error) {
-	w.logger.WithFields(logrus.Fields{
-		"project": opts.ProjectSlug,
-		"subject": opts.SubjectSlug,
-		"study":   opts.StudySlug,
-		"dir":     opts.OutputDir,
-	}).Info("starting kohya-ss export")
+	w.logger.Info("starting kohya-ss export",
+		"project", opts.ProjectSlug,
+		"subject", opts.SubjectSlug,
+		"study", opts.StudySlug,
+		"dir", opts.OutputDir,
+	)
 
 	// Resolve subject ID from slugs.
 	subjectID, projectID, err := w.resolveSubject(opts.ProjectSlug, opts.SubjectSlug)
@@ -85,7 +84,7 @@ func (w *Writer) Write(ctx context.Context, opts model.ExportOptions) (*model.Ex
 
 		if err := w.writeSample(ctx, sample, studyID, opts.OutputDir, result); err != nil {
 			errMsg := fmt.Sprintf("sample %s: %v", sample.ID, err)
-			w.logger.WithField("sample_id", sample.ID).WithError(err).Error("export sample failed")
+			w.logger.Error("export sample failed", "sample_id", sample.ID, "error", err)
 			result.Errors = append(result.Errors, errMsg)
 			result.SkippedCount++
 			continue
@@ -93,11 +92,11 @@ func (w *Writer) Write(ctx context.Context, opts model.ExportOptions) (*model.Ex
 		result.SampleCount++
 	}
 
-	w.logger.WithFields(logrus.Fields{
-		"samples":  result.SampleCount,
-		"captions": result.CaptionCount,
-		"skipped":  result.SkippedCount,
-	}).Info("kohya-ss export complete")
+	w.logger.Info("kohya-ss export complete",
+		"samples", result.SampleCount,
+		"captions", result.CaptionCount,
+		"skipped", result.SkippedCount,
+	)
 
 	return result, nil
 }
@@ -131,11 +130,7 @@ func (w *Writer) writeSample(
 		return fmt.Errorf("write image file: %w", err)
 	}
 
-	w.logger.WithFields(logrus.Fields{
-		"sample_id": sample.ID,
-		"width":     mat.Width,
-		"height":    mat.Height,
-	}).Debug("wrote image file")
+	w.logger.Debug("wrote image file", "sample_id", sample.ID, "width", mat.Width, "height", mat.Height)
 
 	// Optionally write caption .txt.
 	if studyID != "" {
@@ -149,7 +144,7 @@ func (w *Writer) writeSample(
 				return fmt.Errorf("write caption file: %w", err)
 			}
 			result.CaptionCount++
-			w.logger.WithField("sample_id", sample.ID).Debug("wrote caption file")
+			w.logger.Debug("wrote caption file", "sample_id", sample.ID)
 		}
 	}
 

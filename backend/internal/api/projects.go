@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	logrus "github.com/sirupsen/logrus"
+	"log/slog"
 
 	projects "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/projects"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/service"
@@ -25,7 +25,7 @@ func NewProjectsService(svc *service.ProjectService) *ProjectsService {
 func (s *ProjectsService) List(_ context.Context) (*projects.ProjectListResult, error) {
 	list, err := s.svc.List()
 	if err != nil {
-		logrus.WithError(err).Error("Failed to list projects")
+		slog.Error("Failed to list projects", "error", err)
 		return nil, fmt.Errorf("list projects: %w", err)
 	}
 

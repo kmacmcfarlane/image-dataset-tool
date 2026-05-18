@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	logrus "github.com/sirupsen/logrus"
+	"log/slog"
 
 	subjects "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/subjects"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/service"
@@ -28,7 +28,7 @@ func (s *SubjectsService) List(_ context.Context, p *subjects.ListPayload) (*sub
 		if errors.Is(err, service.ErrNotFound) {
 			return nil, subjects.MakeNotFound(fmt.Errorf("project %q not found", p.ProjectID))
 		}
-		logrus.WithError(err).Error("Failed to list subjects")
+		slog.Error("Failed to list subjects", "error", err)
 		return nil, fmt.Errorf("list subjects: %w", err)
 	}
 
@@ -161,7 +161,7 @@ func (s *SubjectsService) LinkAccount(_ context.Context, payload *subjects.LinkA
 		if errors.Is(err, service.ErrConflict) {
 			return subjects.MakeConflict(fmt.Errorf("account already linked to this subject"))
 		}
-		logrus.WithError(err).Error("Failed to link account to subject")
+		slog.Error("Failed to link account to subject", "error", err)
 		return fmt.Errorf("link account: %w", err)
 	}
 	return nil
@@ -174,7 +174,7 @@ func (s *SubjectsService) ListLinkedAccounts(_ context.Context, payload *subject
 		if errors.Is(err, service.ErrNotFound) {
 			return nil, subjects.MakeNotFound(fmt.Errorf("subject %q not found", payload.ID))
 		}
-		logrus.WithError(err).Error("Failed to list linked accounts")
+		slog.Error("Failed to list linked accounts", "error", err)
 		return nil, fmt.Errorf("list linked accounts: %w", err)
 	}
 
@@ -198,7 +198,7 @@ func (s *SubjectsService) UnlinkAccount(_ context.Context, payload *subjects.Unl
 		if errors.Is(err, service.ErrNotFound) {
 			return subjects.MakeNotFound(fmt.Errorf("link not found"))
 		}
-		logrus.WithError(err).Error("Failed to unlink account from subject")
+		slog.Error("Failed to unlink account from subject", "error", err)
 		return fmt.Errorf("unlink account: %w", err)
 	}
 	return nil

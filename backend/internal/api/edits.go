@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	"log/slog"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/service"
@@ -62,7 +62,7 @@ func (h *EditsHandler) ServeGetEdits(w http.ResponseWriter, r *http.Request) {
 			respondError(w, http.StatusNotFound, "sample not found")
 			return
 		}
-		logrus.WithError(err).WithField("sample_id", sampleID).Error("Failed to get edits")
+		slog.Error("Failed to get edits", "error", err, "sample_id", sampleID)
 		respondError(w, http.StatusInternalServerError, "failed to get edits")
 		return
 	}
@@ -76,13 +76,13 @@ func (h *EditsHandler) ServeGetEdits(w http.ResponseWriter, r *http.Request) {
 			CropBox:     nil,
 			AutoActions: []string{},
 		}); err != nil {
-			logrus.WithError(err).Error("Failed to encode edits response")
+			slog.Error("Failed to encode edits response", "error", err)
 		}
 		return
 	}
 
 	if err := json.NewEncoder(w).Encode(mapEditToResponse(edit)); err != nil {
-		logrus.WithError(err).Error("Failed to encode edits response")
+		slog.Error("Failed to encode edits response", "error", err)
 	}
 }
 
@@ -125,7 +125,7 @@ func (h *EditsHandler) ServePutEdits(w http.ResponseWriter, r *http.Request) {
 			respondError(w, http.StatusNotFound, "sample not found")
 			return
 		}
-		logrus.WithError(err).WithField("sample_id", sampleID).Error("Failed to save edits")
+		slog.Error("Failed to save edits", "error", err, "sample_id", sampleID)
 		respondError(w, http.StatusInternalServerError, "failed to save edits")
 		return
 	}
@@ -139,13 +139,13 @@ func (h *EditsHandler) ServePutEdits(w http.ResponseWriter, r *http.Request) {
 			CropBox:     nil,
 			AutoActions: []string{},
 		}); err != nil {
-			logrus.WithError(err).Error("Failed to encode edits response")
+			slog.Error("Failed to encode edits response", "error", err)
 		}
 		return
 	}
 
 	if err := json.NewEncoder(w).Encode(mapEditToResponse(result)); err != nil {
-		logrus.WithError(err).Error("Failed to encode edits response")
+		slog.Error("Failed to encode edits response", "error", err)
 	}
 }
 
@@ -163,7 +163,7 @@ func (h *EditsHandler) ServeDeleteEdits(w http.ResponseWriter, r *http.Request) 
 			respondError(w, http.StatusNotFound, "sample not found")
 			return
 		}
-		logrus.WithError(err).WithField("sample_id", sampleID).Error("Failed to reset edits")
+		slog.Error("Failed to reset edits", "error", err, "sample_id", sampleID)
 		respondError(w, http.StatusInternalServerError, "failed to reset edits")
 		return
 	}

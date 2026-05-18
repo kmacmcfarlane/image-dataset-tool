@@ -3,9 +3,8 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"path/filepath"
-
-	logrus "github.com/sirupsen/logrus"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/atomicfile"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/fileformat"
@@ -29,7 +28,7 @@ type EditService struct {
 	editStore   EditRepository
 	sampleStore SampleReader
 	dataDir     string
-	logger      *logrus.Entry
+	logger      *slog.Logger
 }
 
 // NewEditService creates a new EditService.
@@ -38,15 +37,14 @@ func NewEditService(editStore EditRepository, sampleStore SampleReader, dataDir 
 		editStore:   editStore,
 		sampleStore: sampleStore,
 		dataDir:     dataDir,
-		logger:      logrus.WithField("component", "edit_service"),
+		logger:      slog.With("component", "edit_service"),
 	}
 }
 
 // GetEdit returns the edit for a sample, or nil if no edits exist.
 // Returns ErrNotFound (via SampleReader) if the sample itself does not exist.
 func (s *EditService) GetEdit(sampleID string) (*model.Edit, error) {
-	s.logger.WithField("sample_id", sampleID).Trace("entering GetEdit")
-	defer s.logger.Trace("returning from GetEdit")
+	s.logger.Debug("entering GetEdit", "sample_id", sampleID)
 
 	// Verify sample exists before returning edits.
 	if _, err := s.sampleStore.GetByID(sampleID); err != nil {
@@ -59,8 +57,7 @@ func (s *EditService) GetEdit(sampleID string) (*model.Edit, error) {
 // SaveEdit creates/updates the edit for a sample, writes to manifest, and returns the result.
 // This is idempotent: saving the same edits twice produces the same state.
 func (s *EditService) SaveEdit(edit *model.Edit) (*model.Edit, error) {
-	s.logger.WithField("sample_id", edit.SampleID).Trace("entering SaveEdit")
-	defer s.logger.Trace("returning from SaveEdit")
+	s.logger.Debug("entering SaveEdit", "sample_id", edit.SampleID)
 
 	// Validate sample exists and get its metadata for file path.
 	sample, err := s.sampleStore.GetByID(edit.SampleID)
@@ -76,10 +73,7 @@ func (s *EditService) SaveEdit(edit *model.Edit) (*model.Edit, error) {
 	// Step 1: Update manifest first with file lock (PRD 11.1 rule 1: manifest before DB).
 	// If manifest succeeds but DB fails, reconciler recovers on restart.
 	if err := s.updateManifestEdits(sample, edit); err != nil {
-		s.logger.WithFields(logrus.Fields{
-			"sample_id": edit.SampleID,
-			"error":     err.Error(),
-		}).Error("failed to update manifest edits")
+		s.logger.Error("failed to update manifest edits", "sample_id", edit.SampleID, "error", err)
 		return nil, fmt.Errorf("update manifest: %w", err)
 	}
 
@@ -89,15 +83,14 @@ func (s *EditService) SaveEdit(edit *model.Edit) (*model.Edit, error) {
 		return nil, fmt.Errorf("upsert edit: %w", err)
 	}
 
-	s.logger.WithField("sample_id", edit.SampleID).Info("edit saved")
+	s.logger.Info("edit saved", "sample_id", edit.SampleID)
 	return result, nil
 }
 
 // ResetEdits clears all edits for a sample, resetting to original.
 // Returns nil (no edit exists after reset).
 func (s *EditService) ResetEdits(sampleID string) (*model.Edit, error) {
-	s.logger.WithField("sample_id", sampleID).Trace("entering ResetEdits")
-	defer s.logger.Trace("returning from ResetEdits")
+	s.logger.Debug("entering ResetEdits", "sample_id", sampleID)
 
 	sample, err := s.sampleStore.GetByID(sampleID)
 	if err != nil {
@@ -113,10 +106,7 @@ func (s *EditService) ResetEdits(sampleID string) (*model.Edit, error) {
 		AutoActionsJSON: "[]",
 	}
 	if err := s.updateManifestEdits(sample, defaultEdit); err != nil {
-		s.logger.WithFields(logrus.Fields{
-			"sample_id": sampleID,
-			"error":     err.Error(),
-		}).Error("failed to reset manifest edits")
+		s.logger.Error("failed to reset manifest edits", "sample_id", sampleID, "error", err)
 		return nil, fmt.Errorf("reset manifest: %w", err)
 	}
 
@@ -125,7 +115,7 @@ func (s *EditService) ResetEdits(sampleID string) (*model.Edit, error) {
 		return nil, fmt.Errorf("delete edit: %w", err)
 	}
 
-	s.logger.WithField("sample_id", sampleID).Info("edits reset to original")
+	s.logger.Info("edits reset to original", "sample_id", sampleID)
 	return nil, nil
 }
 

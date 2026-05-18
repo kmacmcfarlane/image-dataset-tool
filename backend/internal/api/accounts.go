@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	logrus "github.com/sirupsen/logrus"
+	"log/slog"
 
 	accounts "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/accounts"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
@@ -26,7 +26,7 @@ func NewAccountsService(svc *service.AccountService) *AccountsService {
 func (s *AccountsService) List(_ context.Context) (*accounts.AccountListResult, error) {
 	list, err := s.svc.List()
 	if err != nil {
-		logrus.WithError(err).Error("Failed to list accounts")
+		slog.Error("Failed to list accounts", "error", err)
 		return nil, fmt.Errorf("list accounts: %w", err)
 	}
 

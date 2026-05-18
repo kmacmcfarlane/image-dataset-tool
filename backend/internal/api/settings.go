@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	logrus "github.com/sirupsen/logrus"
+	"log/slog"
 
 	settings "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/settings"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/crypto"
@@ -67,7 +67,7 @@ func resolveKeyStatus(keyPath string) string {
 func (s *SettingsService) ListSecrets(_ context.Context) (*settings.SecretListResult, error) {
 	entries, err := s.secrets.List()
 	if err != nil {
-		logrus.WithError(err).Error("Failed to list secrets")
+		slog.Error("Failed to list secrets", "error", err)
 		return nil, fmt.Errorf("list secrets: %w", err)
 	}
 
@@ -87,26 +87,26 @@ func (s *SettingsService) ListSecrets(_ context.Context) (*settings.SecretListRe
 // SetSecret creates or updates an encrypted secret.
 func (s *SettingsService) SetSecret(_ context.Context, p *settings.SetSecretPayload) error {
 	if err := s.secrets.Set(p.Key, p.Value); err != nil {
-		logrus.WithError(err).WithField("key", p.Key).Error("Failed to set secret")
+		slog.Error("Failed to set secret", "error", err, "key", p.Key)
 		return fmt.Errorf("set secret: %w", err)
 	}
-	logrus.WithField("key", p.Key).Info("Secret upserted")
+	slog.Info("Secret upserted", "key", p.Key)
 	return nil
 }
 
 // DeleteSecret removes a secret by key.
 func (s *SettingsService) DeleteSecret(_ context.Context, p *settings.DeleteSecretPayload) error {
 	if err := s.secrets.Delete(p.Key); err != nil {
-		logrus.WithError(err).WithField("key", p.Key).Error("Failed to delete secret")
+		slog.Error("Failed to delete secret", "error", err, "key", p.Key)
 		return fmt.Errorf("delete secret: %w", err)
 	}
-	logrus.WithField("key", p.Key).Info("Secret deleted")
+	slog.Info("Secret deleted", "key", p.Key)
 	return nil
 }
 
 // TestProvider tests connectivity to a provider using the stored API key secret.
 func (s *SettingsService) TestProvider(_ context.Context, p *settings.TestProviderPayload) (*settings.TestProviderResult, error) {
-	log := logrus.WithField("provider", p.Provider)
+	log := slog.With("provider", p.Provider)
 
 	// Determine the expected secret key name for the provider.
 	secretKey := providerSecretKey(p.Provider)

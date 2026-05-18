@@ -2,12 +2,12 @@ package natsutil
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	logrus "github.com/sirupsen/logrus"
 )
 
 // Server wraps an embedded NATS server with JetStream and provides
@@ -23,7 +23,7 @@ type Server struct {
 // The server uses in-process connections only (no network port).
 // It creates the media stream and durable pull consumers per config.
 func New(cfg Config) (*Server, error) {
-	log := logrus.WithField("component", "nats")
+	log := slog.With("component", "nats")
 
 	opts := &server.Options{
 		DontListen: true, // in-process only, no TCP port
@@ -108,11 +108,11 @@ func (s *Server) CheckNATS() error {
 
 // Shutdown gracefully stops the NATS server, draining the connection first.
 func (s *Server) Shutdown() {
-	log := logrus.WithField("component", "nats")
+	log := slog.With("component", "nats")
 
 	if s.nc != nil {
 		if err := s.nc.Drain(); err != nil {
-			log.WithError(err).Warn("Error draining NATS connection")
+			log.Warn("Error draining NATS connection", "error", err)
 		}
 	}
 

@@ -3,10 +3,10 @@ package service
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
-	logrus "github.com/sirupsen/logrus"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
@@ -65,11 +65,7 @@ func (s *AccountService) Create(platform, handle string) (*model.Account, error)
 		return nil, fmt.Errorf("store account: %w", err)
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"id":       a.ID,
-		"platform": a.Platform,
-		"handle":   a.Handle,
-	}).Info("Account created")
+	slog.Info("Account created", "id", a.ID, "platform", a.Platform, "handle", a.Handle)
 
 	return a, nil
 }
@@ -117,7 +113,7 @@ func (s *AccountService) UpdateCookies(id string, cookies string) error {
 		return fmt.Errorf("update cookies: %w", err)
 	}
 
-	logrus.WithField("id", id).Info("Account cookies updated")
+	slog.Info("Account cookies updated", "id", id)
 	return nil
 }
 
@@ -137,6 +133,6 @@ func (s *AccountService) Delete(id string) error {
 		return err
 	}
 
-	logrus.WithField("id", id).Info("Account deleted")
+	slog.Info("Account deleted", "id", id)
 	return nil
 }

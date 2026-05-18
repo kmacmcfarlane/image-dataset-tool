@@ -7,12 +7,11 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"log/slog"
 	"math"
 	"os"
 	"path/filepath"
 	"strings"
-
-	logrus "github.com/sirupsen/logrus"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
 )
@@ -34,14 +33,14 @@ type MaterializeResult struct {
 // returned as-is with no re-encoding.
 type EditMaterializer struct {
 	dataDir string
-	logger  *logrus.Entry
+	logger  *slog.Logger
 }
 
 // NewEditMaterializer creates a new EditMaterializer rooted at dataDir.
 func NewEditMaterializer(dataDir string) *EditMaterializer {
 	return &EditMaterializer{
 		dataDir: dataDir,
-		logger:  logrus.WithField("component", "edit_materializer"),
+		logger:  slog.With("component", "edit_materializer"),
 	}
 }
 
@@ -51,7 +50,7 @@ func NewEditMaterializer(dataDir string) *EditMaterializer {
 // If edit is nil or empty (no rotation, no crop), the raw file bytes are copied
 // as-is with no re-encoding to preserve original quality.
 func (m *EditMaterializer) Materialize(sample *model.Sample, edit *model.Edit) (*MaterializeResult, error) {
-	m.logger.WithField("sample_id", sample.ID).Trace("entering Materialize")
+	m.logger.Debug("entering Materialize", "sample_id", sample.ID)
 
 	rawPath := filepath.Join(m.dataDir, sample.FilePath)
 
@@ -71,11 +70,7 @@ func (m *EditMaterializer) rawCopy(path string, sample *model.Sample) (*Material
 	}
 
 	format := formatFromExt(filepath.Ext(path))
-	m.logger.WithFields(logrus.Fields{
-		"sample_id": sample.ID,
-		"format":    format,
-		"bytes":     len(data),
-	}).Debug("raw copy (no edits)")
+	m.logger.Debug("raw copy (no edits)", "sample_id", sample.ID, "format", format, "bytes", len(data))
 
 	return &MaterializeResult{
 		Data:   data,
@@ -98,12 +93,12 @@ func (m *EditMaterializer) applyEdits(path string, sample *model.Sample, edit *m
 		return nil, fmt.Errorf("decode image %s: %w", path, err)
 	}
 
-	m.logger.WithFields(logrus.Fields{
-		"sample_id":    sample.ID,
-		"rotation_deg": edit.RotationDeg,
-		"has_crop":     edit.CropBox != nil,
-		"src_format":   detectedFormat,
-	}).Debug("applying edits")
+	m.logger.Debug("applying edits",
+		"sample_id", sample.ID,
+		"rotation_deg", edit.RotationDeg,
+		"has_crop", edit.CropBox != nil,
+		"src_format", detectedFormat,
+	)
 
 	// Step 1: Rotation.
 	if edit.RotationDeg != 0 {

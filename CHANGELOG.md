@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-037: Structured JSON logs with configurable level
+- Migrated all backend logging from logrus to Go stdlib `log/slog` with a JSON handler writing to stdout
+- New `internal/slogutil` package: `Configure(cfg)` sets log level from config map (`log_level` key) or `LOG_LEVEL` env var (default: info)
+- HTTP middleware logs: `method`, `path`, `status`, `duration_ms`, `request_id`; debug-only: `remote_addr`, `user_agent`, `query`, `bytes_written`
+- Secrets never appear in logs (cookie values, API key values logged as key names only)
+- Integration tests in `internal/slogutil` and `cmd/server` verify JSON structure, level filtering, and secret safety
+- Updated `agent/DEVELOPMENT_PRACTICES.md` section 3.6 to document slog usage
+
 ### S-031: kohya-ss dataset writer
 - `KohyaWriter` in `internal/export/kohya` implements `DatasetWriter` for kohya-ss format: `<sample-id>.jpg` + optional `<sample-id>.txt` pairs
 - Caption `.txt` omitted when no caption exists for the selected study; images edit-materialized at export time

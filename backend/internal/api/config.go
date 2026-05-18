@@ -2,9 +2,9 @@ package api
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
-	logrus "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
 
@@ -20,7 +20,7 @@ func LoadConfig() (map[string]any, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logrus.WithField("path", path).Info("config.yaml not found — using empty config")
+			slog.Info("config.yaml not found — using empty config", "path", path)
 			return map[string]any{}, nil
 		}
 		return nil, fmt.Errorf("read config file: %w", err)

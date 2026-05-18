@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	logrus "github.com/sirupsen/logrus"
+	"log/slog"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/crypto"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/datadir"
@@ -59,7 +59,7 @@ func (h *SetupHandler) ServeStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logrus.WithError(err).Error("Failed to encode setup status response")
+		slog.Error("Failed to encode setup status response", "error", err)
 	}
 }
 
@@ -79,7 +79,7 @@ func (h *SetupHandler) ServeGenerateKey(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := crypto.GenerateKey(h.keyPath); err != nil {
-		logrus.WithError(err).Error("Failed to generate encryption key")
+		slog.Error("Failed to generate encryption key", "error", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		resp := GenerateKeyResponse{OK: false, Message: err.Error()}
@@ -87,7 +87,7 @@ func (h *SetupHandler) ServeGenerateKey(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	logrus.WithField("path", h.keyPath).Info("Encryption key generated via setup wizard")
+	slog.Info("Encryption key generated via setup wizard", "path", h.keyPath)
 	w.Header().Set("Content-Type", "application/json")
 	resp := GenerateKeyResponse{OK: true, Message: "Key generated successfully at " + h.keyPath}
 	json.NewEncoder(w).Encode(resp) //nolint:errcheck

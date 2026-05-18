@@ -3,8 +3,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
-
-	logrus "github.com/sirupsen/logrus"
+	"log/slog"
 )
 
 // migration represents a single schema migration.
@@ -213,10 +212,7 @@ func Migrate(db *sql.DB) error {
 			continue
 		}
 
-		logrus.WithFields(logrus.Fields{
-			"version": m.version,
-			"name":    m.name,
-		}).Info("Applying migration")
+		slog.Info("Applying migration", "version", m.version, "name", m.name)
 
 		tx, err := db.Begin()
 		if err != nil {
@@ -238,6 +234,6 @@ func Migrate(db *sql.DB) error {
 		}
 	}
 
-	logrus.Info("All migrations applied")
+	slog.Info("All migrations applied")
 	return nil
 }

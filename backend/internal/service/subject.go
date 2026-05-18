@@ -3,11 +3,11 @@ package service
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/google/uuid"
-	logrus "github.com/sirupsen/logrus"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/fileformat"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
@@ -101,7 +101,7 @@ func (s *SubjectService) Create(projectID, name string) (*model.Subject, error) 
 
 	// DB insert after manifest.
 	if err := s.store.Create(sub); err != nil {
-		logrus.WithError(err).WithField("slug", slug).Warn("DB insert failed after manifest write; reconciler will recover")
+		slog.Warn("DB insert failed after manifest write; reconciler will recover", "error", err, "slug", slug)
 		return nil, fmt.Errorf("store subject: %w", err)
 	}
 
@@ -109,14 +109,10 @@ func (s *SubjectService) Create(projectID, name string) (*model.Subject, error) 
 	manifest.CreatedAt = sub.CreatedAt
 	manifest.UpdatedAt = sub.UpdatedAt
 	if err := fileformat.WriteSubjectManifest(manifestPath, manifest); err != nil {
-		logrus.WithError(err).Warn("Failed to update manifest with timestamps; non-fatal")
+		slog.Warn("Failed to update manifest with timestamps; non-fatal", "error", err)
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"id":         sub.ID,
-		"slug":       sub.Slug,
-		"project_id": projectID,
-	}).Info("Subject created")
+	slog.Info("Subject created", "id", sub.ID, "slug", sub.Slug, "project_id", projectID)
 
 	return sub, nil
 }
@@ -206,10 +202,7 @@ func (s *SubjectService) Update(projectID, id string, name *string) (*model.Subj
 		oldDir := filepath.Join(s.dataDir, "projects", project.Slug, "subjects", oldSub.Slug)
 		newDir := filepath.Join(s.dataDir, "projects", project.Slug, "subjects", newSlug)
 		if err := os.Rename(oldDir, newDir); err != nil {
-			logrus.WithError(err).WithFields(logrus.Fields{
-				"old_dir": oldDir,
-				"new_dir": newDir,
-			}).Warn("Failed to rename subject directory")
+			slog.Warn("Failed to rename subject directory", "error", err, "old_dir", oldDir, "new_dir", newDir)
 			// Continue with DB update even if rename fails.
 		}
 	}
@@ -239,7 +232,7 @@ func (s *SubjectService) Update(projectID, id string, name *string) (*model.Subj
 		UpdatedAt:      sub.UpdatedAt,
 	}
 	if err := fileformat.WriteSubjectManifest(manifestPath, manifest); err != nil {
-		logrus.WithError(err).Warn("Failed to update manifest after subject update; non-fatal")
+		slog.Warn("Failed to update manifest after subject update; non-fatal", "error", err)
 	}
 
 	return sub, nil
@@ -268,10 +261,7 @@ func (s *SubjectService) LinkAccount(projectID, subjectID, accountID string) err
 		return fmt.Errorf("link account: %w", err)
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"subject_id": subjectID,
-		"account_id": accountID,
-	}).Info("Account linked to subject")
+	slog.Info("Account linked to subject", "subject_id", subjectID, "account_id", accountID)
 
 	return nil
 }
@@ -296,10 +286,7 @@ func (s *SubjectService) UnlinkAccount(projectID, subjectID, accountID string) e
 		return fmt.Errorf("unlink account: %w", err)
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"subject_id": subjectID,
-		"account_id": accountID,
-	}).Info("Account unlinked from subject")
+	slog.Info("Account unlinked from subject", "subject_id", subjectID, "account_id", accountID)
 
 	return nil
 }
@@ -346,22 +333,18 @@ func (s *SubjectService) Delete(projectID, id string, hardDelete bool) error {
 		// Get project for directory path.
 		project, err := s.projectStore.Get(projectID)
 		if err != nil {
-			logrus.WithError(err).Warn("Failed to get project for hard delete directory removal")
+			slog.Warn("Failed to get project for hard delete directory removal", "error", err)
 		} else {
 			subjectDir := filepath.Join(s.dataDir, "projects", project.Slug, "subjects", sub.Slug)
 			if err := os.RemoveAll(subjectDir); err != nil {
-				logrus.WithError(err).WithField("dir", subjectDir).Warn("Failed to remove subject directory")
+				slog.Warn("Failed to remove subject directory", "error", err, "dir", subjectDir)
 			} else {
-				logrus.WithField("dir", subjectDir).Info("Subject directory removed")
+				slog.Info("Subject directory removed", "dir", subjectDir)
 			}
 		}
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"id":          sub.ID,
-		"project_id":  projectID,
-		"hard_delete": hardDelete,
-	}).Info("Subject deleted")
+	slog.Info("Subject deleted", "id", sub.ID, "project_id", projectID, "hard_delete", hardDelete)
 
 	return nil
 }

@@ -3,8 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
-
-	logrus "github.com/sirupsen/logrus"
+	"log/slog"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
@@ -48,7 +47,7 @@ func (s *JobService) ListJobs(p ListJobsParams) ([]*model.JobRun, int64, error) 
 		Limit:  limit,
 	})
 	if err != nil {
-		logrus.WithError(err).Error("Failed to list jobs")
+		slog.Error("Failed to list jobs", "error", err)
 		return nil, 0, fmt.Errorf("list jobs: %w", err)
 	}
 	return jobs, total, nil
@@ -95,7 +94,7 @@ func (s *JobService) ListJobMessages(p ListJobMessagesParams) ([]*model.JobMessa
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, 0, fmt.Errorf("job %q: %w", p.JobRunID, ErrNotFound)
 		}
-		logrus.WithError(err).Error("Failed to list job messages")
+		slog.Error("Failed to list job messages", "error", err)
 		return nil, 0, fmt.Errorf("list job messages: %w", err)
 	}
 	return msgs, total, nil

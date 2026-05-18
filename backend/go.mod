@@ -8,7 +8,6 @@ require (
 	github.com/nats-io/nats.go v1.51.0
 	github.com/onsi/ginkgo/v2 v2.28.3
 	github.com/onsi/gomega v1.40.0
-	github.com/sirupsen/logrus v1.9.4
 	goa.design/goa/v3 v3.24.2
 	golang.org/x/text v0.36.0
 	golang.org/x/time v0.15.0

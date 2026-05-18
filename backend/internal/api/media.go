@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"strings"
 
-	logrus "github.com/sirupsen/logrus"
+	"log/slog"
 )
 
 const thumbnailMaxDim = 256
@@ -127,10 +127,10 @@ func (h *MediaHandler) ServeThumbnail(w http.ResponseWriter, r *http.Request) {
 
 	// If thumbnail doesn't exist on disk, regenerate it.
 	if _, err := os.Stat(thumbPath); os.IsNotExist(err) {
-		logrus.WithField("sample_id", sampleID).Warn("Thumbnail missing — regenerating")
+		slog.Warn("Thumbnail missing — regenerating", "sample_id", sampleID)
 		origPath, _ := h.resolver.ResolveMedia(sampleID)
 		if err := generateThumbnail(origPath, thumbPath); err != nil {
-			logrus.WithError(err).WithField("sample_id", sampleID).Error("Failed to regenerate thumbnail")
+			slog.Error("Failed to regenerate thumbnail", "error", err, "sample_id", sampleID)
 			respondError(w, http.StatusInternalServerError, "failed to generate thumbnail")
 			return
 		}

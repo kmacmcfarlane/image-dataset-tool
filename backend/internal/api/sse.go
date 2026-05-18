@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"sync"
 
-	logrus "github.com/sirupsen/logrus"
+	"log/slog"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/pipeline"
 )
@@ -117,7 +117,7 @@ func (h *SSEHandler) StartBroadcast() {
 
 // ServeHTTP implements http.Handler for GET /api/sse.
 func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log := logrus.WithField("component", "sse")
+	log := slog.With("component", "sse")
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -140,7 +140,7 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if leid := r.Header.Get("Last-Event-ID"); leid != "" {
 		if parsed, err := strconv.ParseUint(leid, 10, 64); err == nil {
 			lastID = parsed
-			log.WithField("last_event_id", lastID).Debug("SSE reconnect with Last-Event-ID")
+			log.Debug("SSE reconnect with Last-Event-ID", "last_event_id", lastID)
 		}
 	}
 
@@ -148,7 +148,7 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		missed := h.ring.Since(lastID)
 		for _, ne := range missed {
 			if err := writeSSEEvent(w, ne); err != nil {
-				log.WithError(err).Debug("Failed to write replay event")
+				log.Debug("Failed to write replay event", "error", err)
 				return
 			}
 		}
@@ -175,7 +175,7 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		case ne := <-ch:
 			if err := writeSSEEvent(w, ne); err != nil {
-				log.WithError(err).Debug("Failed to write SSE event")
+				log.Debug("Failed to write SSE event", "error", err)
 				return
 			}
 			flusher.Flush()

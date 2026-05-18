@@ -4,8 +4,8 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 
-	logrus "github.com/sirupsen/logrus"
 	_ "modernc.org/sqlite"
 )
 
@@ -40,6 +40,6 @@ func OpenDB(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("foreign keys not enabled")
 	}
 
-	logrus.WithField("path", path).Info("Database opened successfully")
+	slog.Info("Database opened successfully", "path", path)
 	return db, nil
 }

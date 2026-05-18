@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	"log/slog"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
@@ -55,7 +55,7 @@ func (h *SamplesHandler) ServeList(w http.ResponseWriter, r *http.Request) {
 
 	samples, err := h.store.ListBySubject(subjectID)
 	if err != nil {
-		logrus.WithError(err).WithField("subject_id", subjectID).Error("Failed to list samples")
+		slog.Error("Failed to list samples", "error", err, "subject_id", subjectID)
 		respondError(w, http.StatusInternalServerError, "failed to list samples")
 		return
 	}
@@ -69,7 +69,7 @@ func (h *SamplesHandler) ServeList(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logrus.WithError(err).Error("Failed to encode samples response")
+		slog.Error("Failed to encode samples response", "error", err)
 	}
 }
 
@@ -138,14 +138,14 @@ func (h *SamplesHandler) ServeUpdateStatus(w http.ResponseWriter, r *http.Reques
 			respondError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		logrus.WithError(err).WithField("sample_id", sampleID).Error("Failed to update sample status")
+		slog.Error("Failed to update sample status", "error", err, "sample_id", sampleID)
 		respondError(w, http.StatusInternalServerError, "failed to update sample status")
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(mapSampleToResponse(updated)); err != nil {
-		logrus.WithError(err).Error("Failed to encode update status response")
+		slog.Error("Failed to encode update status response", "error", err)
 	}
 }
 
@@ -181,14 +181,14 @@ func (h *SamplesHandler) ServeBulkUpdateStatus(w http.ResponseWriter, r *http.Re
 			respondError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		logrus.WithError(err).Error("Failed to bulk update sample status")
+		slog.Error("Failed to bulk update sample status", "error", err)
 		respondError(w, http.StatusInternalServerError, "failed to bulk update sample status")
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(BulkUpdateStatusResponse{Updated: affected}); err != nil {
-		logrus.WithError(err).Error("Failed to encode bulk status response")
+		slog.Error("Failed to encode bulk status response", "error", err)
 	}
 }
 

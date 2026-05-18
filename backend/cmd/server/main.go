@@ -2,11 +2,10 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
-
-	logrus "github.com/sirupsen/logrus"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api"
 	genaccounts "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/accounts"
@@ -29,48 +28,63 @@ import (
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/pipeline"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/reconciler"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/service"
+	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/slogutil"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
 	goahttp "goa.design/goa/v3/http"
 )
 
 func main() {
-	// Configure structured JSON logging first.
-	api.ConfigureLogging()
+	// Load application config first so log level can be read from it.
+	cfg, err := api.LoadConfig()
+	if err != nil {
+		// Logging not yet configured; write to stderr manually.
+		fmt.Fprintf(os.Stderr, "Failed to load config.yaml — using empty config: %v\n", err)
+		cfg = map[string]any{}
+	}
+
+	// Configure structured JSON logging (reads log_level from config or LOG_LEVEL env).
+	slogutil.Configure(cfg)
 
 	// --- Startup initialization ---
 
 	// 1. Bootstrap data directory (creates dirs if missing, resolves path).
 	dir, err := datadir.Bootstrap()
 	if err != nil {
-		logrus.Fatalf("Failed to bootstrap data directory: %v", err)
+		slog.Error("Failed to bootstrap data directory", "error", err)
+		os.Exit(1)
 	}
 
 	// 2a. Auto-provision secret.key on first start (dev convenience).
 	if err := datadir.EnsureSecretKey(dir); err != nil {
-		logrus.Fatalf("Failed to provision encryption key: %v", err)
+		slog.Error("Failed to provision encryption key", "error", err)
+		os.Exit(1)
 	}
 
 	// 2b. Load encryption key — fail fast with clear error on missing/bad perms.
 	keyPath := datadir.SecretKeyPath(dir)
 	encKey, err := crypto.LoadKey(keyPath)
 	if err != nil {
-		logrus.Fatalf("Failed to load encryption key: %v", err)
+		slog.Error("Failed to load encryption key", "error", err)
+		os.Exit(1)
 	}
 
 	// 3. Open SQLite database and run migrations.
 	db, err := store.OpenDB(datadir.DBPath(dir))
 	if err != nil {
-		logrus.Fatalf("Failed to open database: %v", err)
+		slog.Error("Failed to open database", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 
 	if err := store.Migrate(db); err != nil {
-		logrus.Fatalf("Failed to run database migrations: %v", err)
+		slog.Error("Failed to run database migrations", "error", err)
+		os.Exit(1)
 	}
 
 	// 4. Run filesystem reconciler (must complete before NATS consumers start).
 	if err := reconciler.Run(db, dir); err != nil {
-		logrus.Fatalf("Failed to run filesystem reconciler: %v", err)
+		slog.Error("Failed to run filesystem reconciler", "error", err)
+		os.Exit(1)
 	}
 
 	// 5. Start embedded NATS JetStream server.
@@ -78,7 +92,8 @@ func main() {
 	natsCfg := natsutil.DefaultConfig(natsDataDir)
 	natsSrv, err := natsutil.New(natsCfg)
 	if err != nil {
-		logrus.Fatalf("Failed to start embedded NATS server: %v", err)
+		slog.Error("Failed to start embedded NATS server", "error", err)
+		os.Exit(1)
 	}
 	defer natsSrv.Shutdown()
 
@@ -93,13 +108,6 @@ func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
-	}
-
-	// Load application config (optional; errors are non-fatal).
-	cfg, err := api.LoadConfig()
-	if err != nil {
-		logrus.WithError(err).Warn("Failed to load config.yaml — using empty config")
-		cfg = map[string]any{}
 	}
 
 	// Create service implementations.
@@ -204,8 +212,9 @@ func main() {
 		Handler: handler,
 	}
 
-	logrus.Infof("Starting server on %s", addr)
+	slog.Info("Starting server", "addr", addr)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		logrus.Fatalf("Server failed: %v", err)
+		slog.Error("Server failed", "error", err)
+		os.Exit(1)
 	}
 }

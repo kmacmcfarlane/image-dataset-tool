@@ -2,12 +2,10 @@ package api
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"os"
-	"strings"
 	"time"
-
-	logrus "github.com/sirupsen/logrus"
 )
 
 // ErrorWithCode is the standard JSON error response shape.
@@ -50,28 +48,33 @@ func RequestLoggingMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(rw, r)
 
-		duration := time.Since(start)
-		fields := logrus.Fields{
-			"method":   r.Method,
-			"path":     r.URL.Path,
-			"status":   rw.status,
-			"duration": duration.String(),
+		durationMs := time.Since(start).Milliseconds()
+
+		attrs := []any{
+			"method",      r.Method,
+			"path",        r.URL.Path,
+			"status",      rw.status,
+			"duration_ms", durationMs,
+			"request_id",  r.Header.Get("X-Request-Id"),
 		}
 
-		if logrus.IsLevelEnabled(logrus.DebugLevel) {
-			fields["remote_addr"] = r.RemoteAddr
-			fields["user_agent"] = r.UserAgent()
-			fields["query"] = r.URL.RawQuery
-			fields["bytes_written"] = rw.bytesWritten
+		if slog.Default().Enabled(r.Context(), slog.LevelDebug) {
+			attrs = append(attrs,
+				"remote_addr",    r.RemoteAddr,
+				"user_agent",     r.UserAgent(),
+				"query",          r.URL.RawQuery,
+				"bytes_written",  rw.bytesWritten,
+			)
 		}
 
-		entry := logrus.WithFields(fields)
-		if rw.status >= 500 {
-			entry.Error("HTTP request")
-		} else if rw.status >= 400 {
-			entry.Warn("HTTP request")
-		} else {
-			entry.Info("HTTP request")
+		msg := "http request"
+		switch {
+		case rw.status >= 500:
+			slog.Error(msg, attrs...)
+		case rw.status >= 400:
+			slog.Warn(msg, attrs...)
+		default:
+			slog.Info(msg, attrs...)
 		}
 	})
 }
@@ -81,7 +84,7 @@ func ErrorMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				logrus.WithField("panic", rec).Error("Recovered from panic in HTTP handler")
+				slog.Error("Recovered from panic in HTTP handler", "panic", rec)
 				respondError(w, http.StatusInternalServerError, "internal server error")
 			}
 		}()
@@ -125,26 +128,4 @@ func (rw *responseRecorder) Flush() {
 	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
-}
-
-// ConfigureLogging sets up logrus with JSON formatting and the log level
-// from the LOG_LEVEL environment variable.
-func ConfigureLogging() {
-	logrus.SetFormatter(&logrus.JSONFormatter{
-		TimestampFormat: time.RFC3339,
-	})
-
-	level := os.Getenv("LOG_LEVEL")
-	if level == "" {
-		level = "info"
-	}
-
-	parsed, err := logrus.ParseLevel(strings.ToLower(level))
-	if err != nil {
-		logrus.WithField("level", level).Warn("Invalid LOG_LEVEL — defaulting to info")
-		parsed = logrus.InfoLevel
-	}
-
-	logrus.SetLevel(parsed)
-	logrus.WithField("level", parsed.String()).Info("Logging configured")
 }
