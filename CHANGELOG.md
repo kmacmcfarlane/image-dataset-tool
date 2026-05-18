@@ -5,10 +5,8 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 ### S-031: kohya-ss dataset writer
-- `KohyaWriter` in `internal/export/kohya` implements `DatasetWriter` for the kohya-ss training format
-- Exports kept samples as `<sample-id>.jpg` + optional `<sample-id>.txt` pairs; .txt omitted when no caption exists for the selected study
-- Edit-materializes every image at export time (rotation, crop applied via `EditMaterializer`)
-- 9 integration tests cover: paired output, missing captions, edit dimensions, non-kept exclusion, empty subject, error cases
+- `KohyaWriter` in `internal/export/kohya` implements `DatasetWriter` for kohya-ss format: `<sample-id>.jpg` + optional `<sample-id>.txt` pairs
+- Caption `.txt` omitted when no caption exists for the selected study; images edit-materialized at export time
 
 ### S-030: DatasetWriter interface + edit-ops materializer
 - `DatasetWriter` interface in new `internal/export` package; `EditMaterializer` applies rotation then crop at export time
