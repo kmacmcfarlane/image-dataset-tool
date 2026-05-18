@@ -197,13 +197,13 @@ func (t *SQLJobTracker) CheckCompletion(ctx context.Context, jobID string) (JobS
 func (t *SQLJobTracker) SetStatus(ctx context.Context, jobID string, status JobStatus) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	query := `UPDATE job_runs SET status = ?, updated_at = ? WHERE id = ?`
-	args := []interface{}{string(status), now, jobID}
+	args := []any{string(status), now, jobID}
 
 	// Set finished_at for terminal statuses.
 	if status == JobStatusSucceeded || status == JobStatusFailed ||
 		status == JobStatusCancelled || status == JobStatusInterrupted {
 		query = `UPDATE job_runs SET status = ?, finished_at = ?, updated_at = ? WHERE id = ?`
-		args = []interface{}{string(status), now, now, jobID}
+		args = []any{string(status), now, now, jobID}
 	}
 
 	_, err := t.db.ExecContext(ctx, query, args...)

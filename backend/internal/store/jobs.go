@@ -174,7 +174,7 @@ func (s *JobStore) UpdateJobRunExportResult(jobID, outputPath string, sampleCoun
 }
 
 // nullIfEmpty returns nil if s is empty, otherwise s.
-func nullIfEmpty(s string) interface{} {
+func nullIfEmpty(s string) any {
 	if s == "" {
 		return nil
 	}

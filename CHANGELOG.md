@@ -5,14 +5,9 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 ### S-033: Server-side export via NATS pipeline + progress + ETA
-- `POST /v1/exports` triggers server-side export; accepts `subject_ids`, `study_slug`, `format`, `destination`
-- Export enumerates kept samples and publishes one message per sample to `media.export` NATS subject
-- Pipeline consumer processes each sample using the kohya-ss `DatasetWriter` (with new `WriteSingle` per-sample method)
-- SSE `job.progress` events emitted per-sample ACK with `completed`, `failed`, `total`, `pct`, and `eta_seconds`
-- ETA calculated from average duration of completed items via new `ETATracker`
-- `job_runs` table extended with `output_path` and `sample_count` columns; updated on job completion
-- New DB migration (v3) adds export columns; `JobStore.CreateJobRun` and `UpdateJobRunExportResult` methods added
-- `OnJobComplete` callback on pipeline consumer enables post-completion actions (e.g. setting final sample count)
+- `POST /v1/exports` triggers server-side export; publishes one NATS message per kept sample to `media.export`
+- SSE `job.progress` events with completed/failed/total/pct and ETA (average duration of completed items)
+- DB migration v3 adds `output_path` and `sample_count` columns to `job_runs`; `OnJobComplete` callback for post-export updates
 
 ### S-037: Structured JSON logs with configurable level
 - Migrated all backend logging from logrus to Go stdlib `log/slog` with a JSON handler writing to stdout

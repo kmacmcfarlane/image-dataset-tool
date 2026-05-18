@@ -333,10 +333,7 @@ func (c *Consumer) handleError(ctx context.Context, log *slog.Logger, msg jetstr
 		if md, err := msg.Metadata(); err == nil && md != nil {
 			numDelivered = md.NumDelivered
 		}
-		backoff := time.Duration(1<<min(numDelivered, 6)) * time.Second
-		if backoff > 60*time.Second {
-			backoff = 60 * time.Second
-		}
+		backoff := min(time.Duration(1<<min(numDelivered, 6))*time.Second, 60*time.Second)
 
 		log.Error("handler error",
 			slog.String("error", handlerErr.Error()),
@@ -382,7 +379,7 @@ func (c *Consumer) checkAndEmitCompletion(ctx context.Context, log *slog.Logger,
 		if c.opts.EventSink != nil {
 			c.opts.EventSink.Emit(SSEEvent{
 				Type: "job.state",
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"id":       env.JobID,
 					"trace_id": env.TraceID,
 					"status":   string(newStatus),
@@ -407,7 +404,7 @@ func (c *Consumer) emitProgress(env *Envelope, completed, failed, total int) {
 		pct = float64(completed+failed) / float64(total) * 100
 	}
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"id":        env.JobID,
 		"trace_id":  env.TraceID,
 		"completed": completed,

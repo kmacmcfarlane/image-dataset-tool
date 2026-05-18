@@ -14,8 +14,8 @@ import (
 
 // SSEEvent represents an event to be sent to SSE clients.
 type SSEEvent struct {
-	Type string                 `json:"type"`
-	Data map[string]interface{} `json:"data"`
+	Type string         `json:"type"`
+	Data map[string]any `json:"data"`
 }
 
 // EventSink is an interface for receiving pipeline events.
@@ -141,7 +141,7 @@ func (e *ConsumerStatsEmitter) emitStats(ctx context.Context, consumers []Consum
 
 		e.sink.Emit(SSEEvent{
 			Type: "consumer.stats",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"subject":      cd.Subject,
 				"pending":      info.NumPending,
 				"ack_pending":  info.NumAckPending,

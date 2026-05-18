@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -111,7 +112,7 @@ func (s *ExportService) TriggerExport(ctx context.Context, params ExportParams) 
 			JOIN projects p ON p.id = cs.project_id
 			JOIN subjects s ON s.project_id = p.id
 			WHERE cs.slug = ? AND s.id IN (`+placeholders(len(params.SubjectIDs))+`)`,
-			append([]interface{}{params.StudySlug}, toInterfaceSlice(params.SubjectIDs)...)...,
+			append([]any{params.StudySlug}, toInterfaceSlice(params.SubjectIDs)...)...,
 		).Scan(&exists)
 		if err != nil {
 			return nil, fmt.Errorf("validate study slug: %w", err)
@@ -265,16 +266,17 @@ func placeholders(n int) string {
 	if n <= 0 {
 		return ""
 	}
-	s := "?"
+	var sb strings.Builder
+	sb.WriteString("?")
 	for i := 1; i < n; i++ {
-		s += ",?"
+		sb.WriteString(",?")
 	}
-	return s
+	return sb.String()
 }
 
-// toInterfaceSlice converts []string to []interface{}.
-func toInterfaceSlice(ss []string) []interface{} {
-	out := make([]interface{}, len(ss))
+// toInterfaceSlice converts []string to []any.
+func toInterfaceSlice(ss []string) []any {
+	out := make([]any, len(ss))
 	for i, s := range ss {
 		out[i] = s
 	}

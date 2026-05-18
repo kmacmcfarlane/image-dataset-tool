@@ -2,7 +2,6 @@ package api_test
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -138,6 +137,4 @@ var _ = Describe("ExportsHandler", func() {
 		Expect(w.Code).To(Equal(http.StatusNotFound))
 	})
 
-	// Suppress unused import warning.
-	_ = context.Background
 })

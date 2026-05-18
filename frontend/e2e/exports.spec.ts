@@ -60,28 +60,10 @@ test('POST /v1/exports returns 202 with job details when data exists', async ({
 }) => {
   const backend = backendURL(baseURL)
 
-  // Step 1: Create a project via API.
+  // Step 1: Create a project via API (unique name avoids shard conflicts).
   const projResp = await request.post(`${backend}/v1/projects`, {
-    data: { name: 'E2E Export Test Project' },
+    data: { name: `E2E Export Test Project ${Date.now()}` },
   })
-  if (projResp.status() === 409) {
-    // Project slug already exists from a previous test run; proceed with the existing one.
-    // List projects to find it.
-    const listResp = await request.get(`${backend}/v1/projects`)
-    const projects = await listResp.json()
-    const existing = projects.projects.find(
-      (p: { name: string }) => p.name === 'E2E Export Test Project',
-    )
-    if (!existing) {
-      test.skip()
-      return
-    }
-    // We have the project but cannot easily seed samples via API alone.
-    // The full pipeline test requires actual image files on disk.
-    // Skip the happy-path portion if we can't guarantee sample data.
-    test.skip()
-    return
-  }
   expect(projResp.status()).toBe(201)
   const project = await projResp.json()
 
@@ -110,19 +92,13 @@ test('POST /v1/exports returns 202 with job details when data exists', async ({
 test('POST /v1/exports rejects unsupported format', async ({ request, baseURL }) => {
   const backend = backendURL(baseURL)
 
-  // Create a project and subject to get a valid subject_id.
+  // Create a project and subject to get a valid subject_id (unique name avoids shard conflicts).
   const projResp = await request.post(`${backend}/v1/projects`, {
-    data: { name: 'E2E Export Format Test' },
+    data: { name: `E2E Export Format Test ${Date.now()}` },
   })
-  // Allow 201 or 409 (conflict) for idempotency.
-  expect([201, 409]).toContain(projResp.status())
-
-  if (projResp.status() === 409) {
-    test.skip()
-    return
-  }
-
+  expect(projResp.status()).toBe(201)
   const project = await projResp.json()
+
   const subjResp = await request.post(`${backend}/v1/projects/${project.id}/subjects`, {
     data: { name: 'Format Test Subject' },
   })

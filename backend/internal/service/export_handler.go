@@ -11,12 +11,6 @@ import (
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/pipeline"
 )
 
-// ExportSampleWriter writes a single sample to disk in the target format.
-type ExportSampleWriter interface {
-	// WriteSample writes a single sample (image + optional caption) to the output directory.
-	WriteSample(ctx context.Context, opts model.ExportOptions, sampleID string) error
-}
-
 // ExportHandler is a pipeline.Handler for the media.export consumer.
 // Each message represents one sample to export.
 type ExportHandler struct {
