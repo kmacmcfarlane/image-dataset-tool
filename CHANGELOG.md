@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-035: Job history view: timing, progress, per-item messages
+- New Goa endpoints: `GET /v1/jobs` (paginated, filters: type, status), `GET /v1/jobs/{id}` (detail), `GET /v1/jobs/{id}/messages` (paginated, level filter defaulting to warning)
+- `JobStore` in SQLite layer queries `job_runs` and `job_messages` tables; level filter uses ≥ semantics (warning → warning+error)
+- `JobService` business logic layer with `JobRepository` interface
+- `JobListView.vue`: job list table with SSE-driven real-time progress bars and error counts; expandable message panel with error/warning/info level filter toggles
+- Pinia `useJobsStore`: `applyProgressEvent` + `applyStateEvent` handle `job.progress` / `job.state` SSE events for live updates
+- E2E: 9 tests in `jobs.spec.ts` covering view load, API responses, 404 handling, messages panel, and level filter
+
 ### S-024: Lightbox: full-size preview with keyboard shortcuts
 - Enter opens full-size lightbox for focused sample; Escape closes it; arrow keys navigate prev/next within selection pool or filtered list
 - K/R keep/reject inside lightbox mirrors grid behavior, synced via `applyStatusToIds` store action (no auto-advance side effects)

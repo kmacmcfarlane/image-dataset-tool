@@ -13,6 +13,8 @@ import (
 	accountssvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/accounts/server"
 	health "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/health"
 	healthsvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/health/server"
+	genjobs "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/jobs"
+	jobssvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/jobs/server"
 	genprojects "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/projects"
 	projectssvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/projects/server"
 	genqueues "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/queues"
@@ -118,11 +120,16 @@ func main() {
 	accountSvc := service.NewAccountService(accountStore)
 	accountsAPISvc := api.NewAccountsService(accountSvc)
 
+	jobStore := store.NewJobStore(db)
+	jobSvc := service.NewJobService(jobStore)
+	jobsAPISvc := api.NewJobsService(jobSvc)
+
 	// Create endpoints.
 	healthEndpoints := health.NewEndpoints(healthSvc)
 	projectsEndpoints := genprojects.NewEndpoints(projectsAPISvc)
 	subjectsEndpoints := gensubjects.NewEndpoints(subjectsAPISvc)
 	accountsEndpoints := genaccounts.NewEndpoints(accountsAPISvc)
+	jobsEndpoints := genjobs.NewEndpoints(jobsAPISvc)
 	queuesEndpoints := genqueues.NewEndpoints(queuesSvc)
 	settingsEndpoints := gensettings.NewEndpoints(settingsSvc)
 
@@ -141,6 +148,9 @@ func main() {
 
 	accountsServer := accountssvr.New(accountsEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
 	accountssvr.Mount(mux, accountsServer)
+
+	jobsServer := jobssvr.New(jobsEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
+	jobssvr.Mount(mux, jobsServer)
 
 	queuesServer := queuessvr.New(queuesEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
 	queuessvr.Mount(mux, queuesServer)
