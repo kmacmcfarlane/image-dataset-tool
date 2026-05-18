@@ -1,80 +1,54 @@
 package api
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
-	"net/http"
+	"fmt"
+	"io"
 
 	"log/slog"
 
+	genexports "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/exports"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/service"
 )
 
-// CreateExportRequest is the JSON body for POST /v1/exports.
-type CreateExportRequest struct {
-	SubjectIDs  []string `json:"subject_ids"`
-	StudySlug   string   `json:"study_slug"`
-	Format      string   `json:"format"`
-	Destination string   `json:"destination"`
+// ExportsService implements the Goa exports service interface.
+type ExportsService struct {
+	exportSvc    *service.ExportService
+	zipExportSvc *service.ZipExportService
 }
 
-// CreateExportResponse is the JSON response for POST /v1/exports.
-type CreateExportResponse struct {
-	JobID      string `json:"job_id"`
-	TraceID    string `json:"trace_id"`
-	Status     string `json:"status"`
-	TotalItems int    `json:"total_items"`
-	OutputPath string `json:"output_path"`
-}
-
-// ExportsHandler serves export API endpoints.
-type ExportsHandler struct {
-	exportSvc *service.ExportService
-}
-
-// NewExportsHandler creates a new exports handler.
-func NewExportsHandler(exportSvc *service.ExportService) *ExportsHandler {
-	return &ExportsHandler{exportSvc: exportSvc}
-}
-
-// ServeCreate handles POST /v1/exports.
-func (h *ExportsHandler) ServeCreate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		respondError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
+// NewExportsService creates a new ExportsService.
+func NewExportsService(exportSvc *service.ExportService, zipExportSvc *service.ZipExportService) *ExportsService {
+	return &ExportsService{
+		exportSvc:    exportSvc,
+		zipExportSvc: zipExportSvc,
 	}
+}
 
-	var req CreateExportRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid JSON body")
-		return
-	}
-
-	if len(req.SubjectIDs) == 0 {
-		respondError(w, http.StatusBadRequest, "subject_ids is required")
-		return
-	}
-
+// Create triggers a server-side export via the NATS pipeline.
+func (s *ExportsService) Create(ctx context.Context, p *genexports.CreateExportPayload) (*genexports.CreateExportResult, error) {
 	params := service.ExportParams{
-		SubjectIDs:  req.SubjectIDs,
-		StudySlug:   req.StudySlug,
-		Format:      req.Format,
-		Destination: req.Destination,
+		SubjectIDs: p.SubjectIds,
+		Format:     p.Format,
+	}
+	if p.StudySlug != nil {
+		params.StudySlug = *p.StudySlug
+	}
+	if p.Destination != nil {
+		params.Destination = *p.Destination
 	}
 
-	jr, err := h.exportSvc.TriggerExport(r.Context(), params)
+	jr, err := s.exportSvc.TriggerExport(ctx, params)
 	if err != nil {
 		if errors.Is(err, service.ErrBadRequest) {
-			respondError(w, http.StatusBadRequest, err.Error())
-			return
+			return nil, genexports.MakeBadRequest(err)
 		}
 		if errors.Is(err, service.ErrNotFound) {
-			respondError(w, http.StatusNotFound, err.Error())
-			return
+			return nil, genexports.MakeNotFound(err)
 		}
 		slog.Error("Failed to trigger export", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to trigger export")
-		return
+		return nil, fmt.Errorf("trigger export: %w", err)
 	}
 
 	totalItems := 0
@@ -82,17 +56,41 @@ func (h *ExportsHandler) ServeCreate(w http.ResponseWriter, r *http.Request) {
 		totalItems = *jr.TotalItems
 	}
 
-	resp := CreateExportResponse{
+	return &genexports.CreateExportResult{
 		JobID:      jr.ID,
 		TraceID:    jr.TraceID,
 		Status:     jr.Status,
 		TotalItems: totalItems,
 		OutputPath: jr.OutputPath,
+	}, nil
+}
+
+// DownloadZip streams a zip archive of exported samples.
+func (s *ExportsService) DownloadZip(ctx context.Context, p *genexports.DownloadZipPayload) (*genexports.DownloadZipResult, io.ReadCloser, error) {
+	params := service.ZipExportParams{
+		SubjectIDs: p.SubjectIds,
+		Format:     p.Format,
+	}
+	if p.StudySlug != nil {
+		params.StudySlug = *p.StudySlug
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		slog.Error("Failed to encode export response", "error", err)
+	body, err := s.zipExportSvc.StreamZip(ctx, params)
+	if err != nil {
+		if errors.Is(err, service.ErrBadRequest) {
+			return nil, nil, genexports.MakeBadRequest(err)
+		}
+		if errors.Is(err, service.ErrNotFound) {
+			return nil, nil, genexports.MakeNotFound(err)
+		}
+		slog.Error("Failed to stream zip export", "error", err)
+		return nil, nil, fmt.Errorf("stream zip: %w", err)
 	}
+
+	result := &genexports.DownloadZipResult{
+		ContentType:        "application/zip",
+		ContentDisposition: "attachment; filename=\"export.zip\"",
+	}
+
+	return result, body, nil
 }

@@ -52,11 +52,11 @@ The API is organized into Goa services, each mapping to a resource domain:
 | health      | /health      | Health check with subsystem status   |
 | queues      | /v1/queues   | NATS JetStream queue admin           |
 | settings    | /v1/settings | Secrets, config, provider testing    |
+| exports     | /v1/exports  | Dataset export (server-side + zip)   |
 | samples*    | /v1/samples  | Sample status updates (single + bulk)|
 | edits*      | /v1/samples  | Edit operations persistence (CRUD)   |
 | captions*   | /v1/samples  | Caption CRUD with study grouping      |
 | media*      | /v1/media    | Raw image and thumbnail serving      |
-| exports*    | /v1/exports  | Trigger server-side dataset export   |
 | sse*        | /api/sse     | Server-sent events stream            |
 | docs*       | /docs        | Swagger UI and OpenAPI spec          |
 

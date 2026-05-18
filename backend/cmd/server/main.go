@@ -10,7 +10,9 @@ import (
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api"
 	genaccounts "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/accounts"
+	genexports "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/exports"
 	accountssvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/accounts/server"
+	exportssvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/exports/server"
 	health "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/health"
 	healthsvr "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/http/health/server"
 	genjobs "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/api/gen/jobs"
@@ -134,6 +136,13 @@ func main() {
 	jobSvc := service.NewJobService(jobStore)
 	jobsAPISvc := api.NewJobsService(jobSvc)
 
+	// --- Export pipeline ---
+	kohyaWriter := kohya.NewWriter(db, dir)
+	exportStore := store.NewExportStore(db)
+	exportSvc := service.NewExportService(db, natsSrv.JS(), jobStore, dir)
+	zipExportSvc := service.NewZipExportService(exportStore, dir)
+	exportsAPISvc := api.NewExportsService(exportSvc, zipExportSvc)
+
 	// Create endpoints.
 	healthEndpoints := health.NewEndpoints(healthSvc)
 	projectsEndpoints := genprojects.NewEndpoints(projectsAPISvc)
@@ -142,6 +151,7 @@ func main() {
 	jobsEndpoints := genjobs.NewEndpoints(jobsAPISvc)
 	queuesEndpoints := genqueues.NewEndpoints(queuesSvc)
 	settingsEndpoints := gensettings.NewEndpoints(settingsSvc)
+	exportsEndpoints := genexports.NewEndpoints(exportsAPISvc)
 
 	// Create HTTP mux.
 	mux := goahttp.NewMuxer()
@@ -167,6 +177,9 @@ func main() {
 
 	settingsServer := settingssvr.New(settingsEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
 	settingssvr.Mount(mux, settingsServer)
+
+	exportsServer := exportssvr.New(exportsEndpoints, mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
+	exportssvr.Mount(mux, exportsServer)
 
 	// Mount custom (non-Goa) handlers.
 	setupHandler := api.NewSetupHandler(dir)
@@ -198,12 +211,8 @@ func main() {
 
 	mux.Handle("GET", "/api/sse", http.HandlerFunc(sseHandler.ServeHTTP))
 
-	// --- Export pipeline ---
-	kohyaWriter := kohya.NewWriter(db, dir)
-	exportSvc := service.NewExportService(db, natsSrv.JS(), jobStore, dir)
+	// --- Export NATS consumer ---
 	exportHandler := service.NewExportHandler(kohyaWriter, jobStore)
-	exportsAPIHandler := api.NewExportsHandler(exportSvc)
-	mux.Handle("POST", "/v1/exports", http.HandlerFunc(exportsAPIHandler.ServeCreate))
 
 	// Start the media.export consumer.
 	tracker := pipeline.NewJobTracker(db)

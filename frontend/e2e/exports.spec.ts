@@ -2,12 +2,10 @@ import { test, expect } from '@playwright/test'
 import { bypassSetupWizard } from './helpers'
 
 /**
- * Export E2E tests for S-033: Server-side export via NATS pipeline.
+ * Export E2E tests for S-033 and S-034.
  *
- * Tests verify POST /v1/exports API contract and error handling.
- * Full pipeline tests (file output verification) require seeded sample data
- * with images on disk; the API contract tests here validate request/response
- * shapes and error codes.
+ * S-033: Server-side export via NATS pipeline (POST /v1/exports).
+ * S-034: Zip stream download via Goa native streaming (POST /v1/exports/zip).
  *
  * Run: make test-e2e SPEC=exports.spec.ts
  */
@@ -21,6 +19,10 @@ function backendURL(baseURL: string | undefined): string {
 test.beforeEach(async ({ page }) => {
   await bypassSetupWizard(page)
 })
+
+// -------------------------------------------------------------------
+// S-033: POST /v1/exports (server-side export via NATS pipeline)
+// -------------------------------------------------------------------
 
 // AC: POST /v1/exports triggers export; params: subject_ids, study_slug, format, destination
 test('POST /v1/exports returns 400 when subject_ids is empty', async ({ request, baseURL }) => {
@@ -85,7 +87,7 @@ test('POST /v1/exports returns 202 with job details when data exists', async ({
   // 400 because there are no kept samples for the subject.
   expect(exportResp.status()).toBe(400)
   const body = await exportResp.json()
-  expect(body.error).toContain('no kept samples')
+  expect(body.message).toContain('no kept samples')
 })
 
 // AC: POST /v1/exports returns 400 for unsupported format
@@ -113,5 +115,98 @@ test('POST /v1/exports rejects unsupported format', async ({ request, baseURL })
   })
   expect(exportResp.status()).toBe(400)
   const body = await exportResp.json()
-  expect(body.error).toContain('unsupported format')
+  expect(body.message).toContain('unsupported format')
+})
+
+// -------------------------------------------------------------------
+// S-034: POST /v1/exports/zip (zip stream download)
+// -------------------------------------------------------------------
+
+// AC: Goa native streaming endpoint for zip download; appears in Swagger/OpenAPI spec
+test('POST /v1/exports/zip endpoint exists in OpenAPI spec', async ({ request, baseURL }) => {
+  const backend = backendURL(baseURL)
+  const resp = await request.get(`${backend}/docs/openapi3.json`)
+  expect(resp.status()).toBe(200)
+  const spec = await resp.json()
+  expect(spec.paths['/v1/exports/zip']).toBeDefined()
+  expect(spec.paths['/v1/exports/zip'].post).toBeDefined()
+})
+
+// AC: Zip endpoint returns 400 when subject_ids is empty
+test('POST /v1/exports/zip returns 400 when subject_ids is empty', async ({
+  request,
+  baseURL,
+}) => {
+  const resp = await request.post(`${backendURL(baseURL)}/v1/exports/zip`, {
+    data: {
+      subject_ids: [],
+      format: 'kohya-ss',
+    },
+  })
+  expect(resp.status()).toBe(400)
+})
+
+// AC: Zip endpoint returns 404 for nonexistent subject
+test('POST /v1/exports/zip returns 404 for nonexistent subject_id', async ({
+  request,
+  baseURL,
+}) => {
+  const resp = await request.post(`${backendURL(baseURL)}/v1/exports/zip`, {
+    data: {
+      subject_ids: ['00000000-0000-0000-0000-000000000000'],
+      format: 'kohya-ss',
+    },
+  })
+  expect(resp.status()).toBe(404)
+})
+
+// AC: Zip endpoint returns 400 when no kept samples exist
+test('POST /v1/exports/zip returns 400 when no kept samples', async ({ request, baseURL }) => {
+  const backend = backendURL(baseURL)
+
+  const projResp = await request.post(`${backend}/v1/projects`, {
+    data: { name: `E2E Zip No Samples ${Date.now()}` },
+  })
+  expect(projResp.status()).toBe(201)
+  const project = await projResp.json()
+
+  const subjResp = await request.post(`${backend}/v1/projects/${project.id}/subjects`, {
+    data: { name: 'Zip Test Subject' },
+  })
+  expect(subjResp.status()).toBe(201)
+  const subject = await subjResp.json()
+
+  const zipResp = await request.post(`${backend}/v1/exports/zip`, {
+    data: {
+      subject_ids: [subject.id],
+      format: 'kohya-ss',
+    },
+  })
+  expect(zipResp.status()).toBe(400)
+})
+
+// AC: FE: Download button triggers request; browser saves via standard dialog
+test('Export view shows download zip button', async ({ page }) => {
+  await page.goto('/export')
+  const btn = page.locator('[data-testid="export-zip-download-btn"]')
+  await expect(btn).toBeVisible()
+  await expect(btn).toHaveText('Download Zip')
+  // Button should be disabled when no subjects are selected.
+  await expect(btn).toBeDisabled()
+})
+
+// AC: FE: Export view loads projects and subjects
+test('Export view loads and shows project selector', async ({ page }) => {
+  await page.goto('/export')
+  const select = page.locator('[data-testid="export-project-select"]')
+  await expect(select).toBeVisible()
+})
+
+// AC: FE: Server export button exists and is disabled without selection
+test('Export view shows server export button (disabled without selection)', async ({ page }) => {
+  await page.goto('/export')
+  const btn = page.locator('[data-testid="export-server-btn"]')
+  await expect(btn).toBeVisible()
+  await expect(btn).toHaveText('Export to Server')
+  await expect(btn).toBeDisabled()
 })
