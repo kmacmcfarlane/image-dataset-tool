@@ -133,7 +133,7 @@ Goa maps service errors to HTTP status codes in the design DSL. General conventi
 ## 7) CORS
 
 - CORS is configured via `CORSMiddleware` in `internal/api/middleware.go`.
-- Default origin: `http://localhost:3000` (override via `CORS_ORIGIN` env var).
+- Default origin: `http://localhost:3002` (override via `CORS_ORIGIN` env var).
 - Supported methods: GET, POST, PUT, DELETE, OPTIONS.
 - Credentials are allowed.
 - Preflight (OPTIONS) returns 204 with appropriate headers.

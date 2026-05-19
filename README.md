@@ -19,7 +19,7 @@ A template for local-first web applications. Runs on Linux via Docker and provid
 make up
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3002](http://localhost:3002) in your browser (or `http://image-dataset-tool.mcfacehead.com` on the McFacehead LAN).
 
 To stop:
 
@@ -118,7 +118,7 @@ For full details see [docs/architecture.md](docs/architecture.md), [docs/databas
 
 ## API documentation
 
-The backend serves interactive Swagger UI at [http://localhost:8080/docs](http://localhost:8080/docs) with an OpenAPI 3.0 spec.
+The backend serves interactive Swagger UI at [http://localhost:8082/docs](http://localhost:8082/docs) with an OpenAPI 3.0 spec.
 
 ## Configuration
 

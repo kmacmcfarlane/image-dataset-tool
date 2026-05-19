@@ -18,7 +18,7 @@ type ErrorWithCode struct {
 func CORSMiddleware(next http.Handler) http.Handler {
 	origin := os.Getenv("CORS_ORIGIN")
 	if origin == "" {
-		origin = "http://localhost:3000"
+		origin = "http://localhost:3002"
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

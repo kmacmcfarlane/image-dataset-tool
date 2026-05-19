@@ -22,7 +22,7 @@ var _ = Describe("Middleware", func() {
 			rec := httptest.NewRecorder()
 			handler.ServeHTTP(rec, req)
 
-			Expect(rec.Header().Get("Access-Control-Allow-Origin")).To(Equal("http://localhost:3000"))
+			Expect(rec.Header().Get("Access-Control-Allow-Origin")).To(Equal("http://localhost:3002"))
 			Expect(rec.Header().Get("Access-Control-Allow-Methods")).To(ContainSubstring("GET"))
 		})
 
