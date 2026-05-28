@@ -132,9 +132,17 @@ func main() {
 	accountSvc := service.NewAccountService(accountStore)
 	accountsAPISvc := api.NewAccountsService(accountSvc)
 
+	sampleStore := store.NewSampleStore(db)
+
 	jobStore := store.NewJobStore(db)
 	jobSvc := service.NewJobService(jobStore)
 	jobsAPISvc := api.NewJobsService(jobSvc)
+
+	// --- Process pipeline ---
+	processHandler := service.NewProcessHandler(
+		sampleStore, subjectStore, projectStore, jobStore, sink, dir,
+		service.DefaultProcessConfig(),
+	)
 
 	// --- Export pipeline ---
 	kohyaWriter := kohya.NewWriter(db, dir)
@@ -191,7 +199,6 @@ func main() {
 	mux.Handle("GET", "/v1/media/{sample_id}", http.HandlerFunc(mediaHandler.ServeImage))
 	mux.Handle("GET", "/v1/media/{sample_id}/thumb", http.HandlerFunc(mediaHandler.ServeThumbnail))
 
-	sampleStore := store.NewSampleStore(db)
 	samplesHandler := api.NewSamplesHandler(sampleStore)
 	mux.Handle("GET", "/v1/subjects/{sid}/samples", http.HandlerFunc(samplesHandler.ServeList))
 	mux.Handle("PUT", "/v1/samples/{id}/status", http.HandlerFunc(samplesHandler.ServeUpdateStatus))
@@ -217,6 +224,9 @@ func main() {
 	// Start the media.export consumer.
 	tracker := pipeline.NewJobTracker(db)
 	etaTracker := pipeline.NewETATracker()
+	processConsumer := startProcessConsumer(natsSrv, tracker, sink, etaTracker, processHandler, dir)
+	defer processConsumer.Stop()
+
 	exportConsumer := startExportConsumer(natsSrv, tracker, sink, etaTracker, exportHandler, jobStore)
 	defer exportConsumer.Stop()
 
@@ -241,6 +251,53 @@ func main() {
 		slog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+// startProcessConsumer creates and starts the media.process NATS pipeline consumer.
+func startProcessConsumer(
+	natsSrv *natsutil.Server,
+	tracker pipeline.JobTracker,
+	sink pipeline.EventSink,
+	etaTracker *pipeline.ETATracker,
+	handler *service.ProcessHandler,
+	dataDir string,
+) *pipeline.Consumer {
+	js := natsSrv.JS()
+	ctx := context.Background()
+
+	cons, err := js.Consumer(ctx, natsutil.StreamName, natsutil.ConsumerProcess)
+	if err != nil {
+		slog.Error("Failed to get process consumer", "error", err)
+		os.Exit(1)
+	}
+
+	cfg := natsutil.DefaultConfig("").Consumers.MediaProcess
+
+	pipelineConsumer := pipeline.NewConsumer(cons, pipeline.ConsumerOpts{
+		ConsumerName: natsutil.ConsumerProcess,
+		Subject:      natsutil.SubjectProcess,
+		Concurrency:  cfg.Concurrency,
+		MaxDeliver:   cfg.MaxDeliver,
+		Handler:      handler.Handle,
+		Tracker:      tracker,
+		JS:           js,
+		Logger:       slog.With("component", "process_consumer"),
+		EventSink:    sink,
+		ETATracker:   etaTracker,
+		OnJobComplete: func(ctx context.Context, jobID string, status pipeline.JobStatus) {
+			// Clean up tmp dir for this job.
+			tmpDir := filepath.Join(dataDir, "tmp", jobID)
+			if err := os.RemoveAll(tmpDir); err != nil {
+				slog.Warn("Failed to clean up tmp dir", "path", tmpDir, "error", err)
+			} else {
+				slog.Info("Cleaned up job tmp dir", "path", tmpDir)
+			}
+		},
+	})
+
+	pipelineConsumer.Start(ctx)
+	slog.Info("Process consumer started", "concurrency", cfg.Concurrency)
+	return pipelineConsumer
 }
 
 // startExportConsumer creates and starts the media.export NATS pipeline consumer.

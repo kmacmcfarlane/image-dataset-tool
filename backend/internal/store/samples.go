@@ -188,3 +188,137 @@ func (s *SampleStore) BulkUpdateStatus(ids []string, status string) (int64, erro
 
 	return affected, nil
 }
+
+// InsertOrIgnore inserts a sample row, ignoring conflicts on the unique
+// constraint (subject_id, source_post_id, slide_index). This provides
+// redelivery idempotency for the media.process pipeline consumer.
+// Returns true if the row was inserted, false if it already existed.
+func (s *SampleStore) InsertOrIgnore(sample *model.Sample) (bool, error) {
+	now := time.Now().UTC().Format(time.RFC3339)
+	if sample.CreatedAt == "" {
+		sample.CreatedAt = now
+	}
+	if sample.UpdatedAt == "" {
+		sample.UpdatedAt = now
+	}
+
+	isDup := 0
+	if sample.IsDuplicate {
+		isDup = 1
+	}
+
+	var duplicateOf sql.NullString
+	if sample.DuplicateOf != "" {
+		duplicateOf = sql.NullString{String: sample.DuplicateOf, Valid: true}
+	}
+
+	var takenAt sql.NullString
+	if sample.TakenAt != "" {
+		takenAt = sql.NullString{String: sample.TakenAt, Valid: true}
+	}
+
+	result, err := s.db.Exec(`
+		INSERT OR IGNORE INTO samples
+			(id, subject_id, source_platform, source_post_id, slide_index,
+			 file_path, sha256, phash, width, height, taken_at, fetched_at,
+			 status, is_duplicate, duplicate_of, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		sample.ID, sample.SubjectID, sample.SourcePlatform,
+		sample.SourcePostID, sample.SlideIndex, sample.FilePath,
+		sample.SHA256, sample.PHash, sample.Width, sample.Height,
+		takenAt, sample.FetchedAt, sample.Status,
+		isDup, duplicateOf, sample.CreatedAt, sample.UpdatedAt,
+	)
+	if err != nil {
+		return false, fmt.Errorf("insert or ignore sample: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("check rows affected on insert: %w", err)
+	}
+	return affected > 0, nil
+}
+
+// FindDuplicatesBySHA256 returns sample IDs within a subject that have the exact sha256.
+func (s *SampleStore) FindDuplicatesBySHA256(subjectID, sha256 string) ([]string, error) {
+	rows, err := s.db.Query(`
+		SELECT id FROM samples
+		WHERE subject_id = ? AND sha256 = ?`, subjectID, sha256)
+	if err != nil {
+		return nil, fmt.Errorf("find duplicates by sha256: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan duplicate id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// FindDuplicatesByPHash returns sample IDs within a subject whose pHash is within
+// the given Hamming distance threshold of the target pHash. Comparison is done
+// in Go after loading all pHash values for the subject.
+func (s *SampleStore) FindDuplicatesByPHash(subjectID, targetPHash string, threshold int) ([]string, error) {
+	rows, err := s.db.Query(`
+		SELECT id, phash FROM samples
+		WHERE subject_id = ? AND phash != ''`, subjectID)
+	if err != nil {
+		return nil, fmt.Errorf("find duplicates by phash: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id, phash string
+		if err := rows.Scan(&id, &phash); err != nil {
+			return nil, fmt.Errorf("scan phash row: %w", err)
+		}
+		dist := hammingDistance(targetPHash, phash)
+		if dist >= 0 && dist <= threshold {
+			ids = append(ids, id)
+		}
+	}
+	return ids, rows.Err()
+}
+
+// hammingDistance computes the Hamming distance between two hex-encoded
+// pHash strings. Returns -1 if the strings have different lengths.
+func hammingDistance(a, b string) int {
+	if len(a) != len(b) {
+		return -1
+	}
+	dist := 0
+	for i := 0; i < len(a); i++ {
+		x := hexVal(a[i])
+		y := hexVal(b[i])
+		if x < 0 || y < 0 {
+			return -1
+		}
+		v := x ^ y
+		for v != 0 {
+			dist++
+			v &= v - 1
+		}
+	}
+	return dist
+}
+
+// hexVal returns the numeric value of a hex digit, or -1 if invalid.
+func hexVal(c byte) int {
+	switch {
+	case c >= '0' && c <= '9':
+		return int(c - '0')
+	case c >= 'a' && c <= 'f':
+		return int(c-'a') + 10
+	case c >= 'A' && c <= 'F':
+		return int(c-'A') + 10
+	default:
+		return -1
+	}
+}

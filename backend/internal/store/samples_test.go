@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
 )
 
@@ -230,6 +231,122 @@ var _ = Describe("SampleStore", func() {
 			_, err := sampleStore.BulkUpdateStatus([]string{"sam1"}, "invalid")
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid status"))
+		})
+	})
+
+	Describe("InsertOrIgnore", func() {
+		It("inserts a new sample and returns true", func() {
+			sample := &model.Sample{
+				ID: "sam-new", SubjectID: "s1", SourcePlatform: "instagram",
+				SourcePostID: "post-new", SlideIndex: 0, FilePath: "/new.jpg",
+				SHA256: "abc123", PHash: "def456", Width: 800, Height: 600,
+				FetchedAt: "2026-01-01T00:00:00Z", Status: "pending",
+			}
+			inserted, err := sampleStore.InsertOrIgnore(sample)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(inserted).To(BeTrue())
+
+			got, err := sampleStore.GetByID("sam-new")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got.SHA256).To(Equal("abc123"))
+		})
+
+		It("returns false on duplicate (subject_id, source_post_id, slide_index)", func() {
+			sample := &model.Sample{
+				ID: "sam-1", SubjectID: "s1", SourcePlatform: "instagram",
+				SourcePostID: "post-dup", SlideIndex: 0, FilePath: "/first.jpg",
+				SHA256: "first", PHash: "ph1", Width: 800, Height: 600,
+				FetchedAt: "2026-01-01T00:00:00Z", Status: "pending",
+			}
+			inserted, err := sampleStore.InsertOrIgnore(sample)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(inserted).To(BeTrue())
+
+			sample2 := &model.Sample{
+				ID: "sam-2", SubjectID: "s1", SourcePlatform: "instagram",
+				SourcePostID: "post-dup", SlideIndex: 0, FilePath: "/second.jpg",
+				SHA256: "second", PHash: "ph2", Width: 800, Height: 600,
+				FetchedAt: "2026-01-01T00:00:00Z", Status: "pending",
+			}
+			inserted, err = sampleStore.InsertOrIgnore(sample2)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(inserted).To(BeFalse())
+		})
+
+		It("handles duplicate_of JSON array", func() {
+			sample := &model.Sample{
+				ID: "sam-d", SubjectID: "s1", SourcePlatform: "instagram",
+				SourcePostID: "post-d", SlideIndex: 0, FilePath: "/d.jpg",
+				SHA256: "sha-d", PHash: "ph-d", Width: 800, Height: 600,
+				FetchedAt: "2026-01-01T00:00:00Z", Status: "pending",
+				IsDuplicate: true, DuplicateOf: `["sam-orig"]`,
+			}
+			inserted, err := sampleStore.InsertOrIgnore(sample)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(inserted).To(BeTrue())
+
+			got, err := sampleStore.GetByID("sam-d")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got.IsDuplicate).To(BeTrue())
+			Expect(got.DuplicateOf).To(Equal(`["sam-orig"]`))
+		})
+	})
+
+	Describe("FindDuplicatesBySHA256", func() {
+		BeforeEach(func() {
+			db, err := store.OpenDB(filepath.Join(tmpDir, "test.sqlite"))
+			Expect(err).NotTo(HaveOccurred())
+			defer db.Close()
+
+			_, err = db.Exec(`INSERT INTO samples (id, subject_id, source_platform, source_post_id, slide_index,
+				file_path, sha256, phash, width, height, fetched_at, status, is_duplicate, created_at, updated_at)
+				VALUES ('sam1', 's1', 'instagram', 'post1', 0, '/img1.jpg', 'aabbcc', 'ph1', 800, 600,
+				'2026-01-01T00:00:00Z', 'pending', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("finds samples with matching sha256", func() {
+			ids, err := sampleStore.FindDuplicatesBySHA256("s1", "aabbcc")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ids).To(ConsistOf("sam1"))
+		})
+
+		It("returns empty for non-matching sha256", func() {
+			ids, err := sampleStore.FindDuplicatesBySHA256("s1", "zzzzz")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ids).To(BeEmpty())
+		})
+
+		It("does not match across subjects", func() {
+			ids, err := sampleStore.FindDuplicatesBySHA256("other-subject", "aabbcc")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ids).To(BeEmpty())
+		})
+	})
+
+	Describe("FindDuplicatesByPHash", func() {
+		BeforeEach(func() {
+			db, err := store.OpenDB(filepath.Join(tmpDir, "test.sqlite"))
+			Expect(err).NotTo(HaveOccurred())
+			defer db.Close()
+
+			_, err = db.Exec(`INSERT INTO samples (id, subject_id, source_platform, source_post_id, slide_index,
+				file_path, sha256, phash, width, height, fetched_at, status, is_duplicate, created_at, updated_at)
+				VALUES ('sam1', 's1', 'instagram', 'post1', 0, '/img1.jpg', 'sha1', '0000000000000000', 800, 600,
+				'2026-01-01T00:00:00Z', 'pending', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("finds samples within Hamming distance threshold", func() {
+			ids, err := sampleStore.FindDuplicatesByPHash("s1", "0000000000000001", 6)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ids).To(ConsistOf("sam1"))
+		})
+
+		It("excludes samples beyond threshold", func() {
+			ids, err := sampleStore.FindDuplicatesByPHash("s1", "ffffffffffffffff", 6)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ids).To(BeEmpty())
 		})
 	})
 })

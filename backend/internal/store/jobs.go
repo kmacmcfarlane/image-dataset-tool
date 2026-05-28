@@ -181,6 +181,21 @@ func nullIfEmpty(s string) any {
 	return s
 }
 
+// CreateJobMessage inserts a new job_messages row.
+func (s *JobStore) CreateJobMessage(msg *model.JobMessage) error {
+	_, err := s.db.Exec(`
+		INSERT INTO job_messages (id, job_run_id, level, sample_ref, account_handle, message, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		msg.ID, msg.JobRunID, msg.Level,
+		nullIfEmpty(msg.SampleRef), nullIfEmpty(msg.AccountHandle),
+		msg.Message, msg.CreatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("insert job_message: %w", err)
+	}
+	return nil
+}
+
 // JobMessageFilter holds optional filters for ListJobMessages.
 type JobMessageFilter struct {
 	JobRunID string
