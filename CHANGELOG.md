@@ -5,12 +5,10 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 ### S-016: Sample writer — post-processing, dedup, thumbnails
-- `media.process` pipeline consumer: reads image from tmp, computes SHA-256 + pHash, checks for duplicates (sha256 exact match + pHash Hamming distance), moves to final path, generates JPEG thumbnail, writes atomic sample manifest, inserts DB row
-- Per-subject mutex for duplicate detection serialization; duplicates flagged but kept on disk for user review
-- INSERT OR IGNORE for NATS redelivery idempotency; sample.new SSE event on creation
-- Skips files exceeding max_file_size_mb (default 50 MB) and unsupported formats (accepts: JPEG, PNG, WebP, HEIC)
-- Tmp dir cleaned up via OnJobComplete callback when all job items processed
-- Store methods: InsertOrIgnore, FindDuplicatesBySHA256, FindDuplicatesByPHash, CreateJobMessage
+- `media.process` pipeline consumer: SHA-256 + pHash dedup (per-subject mutex), thumbnail generation (768px shortest edge), atomic manifest write, `INSERT OR IGNORE` for redelivery idempotency
+- Duplicates flagged but kept on disk for user review; `sample.new` SSE event on creation
+- Skips files exceeding `max_file_size_mb` and unsupported formats; tmp dir cleaned up on job completion
+- Dockerfile updated for CGO (goheif HEIC decoder requires gcc)
 
 ### S-022: Research spike — auto-correction helpers
 - Recommendation doc at `docs/auto-correction-spike.md` with POC code in `docs/spike-poc/auto-correction/`
