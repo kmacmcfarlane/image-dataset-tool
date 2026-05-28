@@ -25,7 +25,7 @@ func BuildCreatePayload(exportsCreateBody string) (*exports.CreateExportPayload,
 	{
 		err = json.Unmarshal([]byte(exportsCreateBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"destination\": \"Blanditiis cumque eligendi maxime minus.\",\n      \"format\": \"Voluptatibus ut.\",\n      \"study_slug\": \"Est id unde repellendus.\",\n      \"subject_ids\": [\n         \"Officia in tempora vero natus.\",\n         \"Eos eos dolor minima qui dolor.\",\n         \"Est provident quasi ea voluptates.\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"destination\": \"Excepturi consequatur ut.\",\n      \"format\": \"Modi ullam.\",\n      \"study_slug\": \"Blanditiis cumque eligendi maxime minus.\",\n      \"subject_ids\": [\n         \"Provident quasi.\",\n         \"Voluptates repudiandae est.\",\n         \"Unde repellendus.\",\n         \"Voluptatibus ut.\"\n      ]\n   }'")
 		}
 		if body.SubjectIds == nil {
 			err = goa.MergeErrors(err, goa.MissingFieldError("subject_ids", "body"))
@@ -65,7 +65,7 @@ func BuildDownloadZipPayload(exportsDownloadZipBody string) (*exports.DownloadZi
 	{
 		err = json.Unmarshal([]byte(exportsDownloadZipBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"format\": \"Corrupti ut qui tempora nihil.\",\n      \"study_slug\": \"Corrupti quia.\",\n      \"subject_ids\": [\n         \"Nulla ratione sed ex optio.\",\n         \"Laudantium dolores numquam doloribus hic reprehenderit ut.\",\n         \"Dolorem laudantium qui est vitae nihil et.\",\n         \"Libero molestiae esse laudantium.\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"format\": \"Corrupti ut qui tempora nihil.\",\n      \"study_slug\": \"Corrupti quia.\",\n      \"subject_ids\": [\n         \"Hic reprehenderit ut tempore dolorem.\",\n         \"Qui est vitae.\",\n         \"Et enim.\",\n         \"Molestiae esse laudantium.\"\n      ]\n   }'")
 		}
 		if body.SubjectIds == nil {
 			err = goa.MergeErrors(err, goa.MissingFieldError("subject_ids", "body"))

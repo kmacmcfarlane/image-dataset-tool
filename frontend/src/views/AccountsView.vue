@@ -100,12 +100,12 @@
       <div class="account-form">
         <div class="form-field">
           <label class="form-label">Platform</label>
-          <input
-            v-model="accountForm.platform"
-            class="form-input"
-            placeholder="e.g. instagram"
+          <n-select
+            v-model:value="accountForm.platform"
+            :options="platformOptions"
+            placeholder="Select platform"
             data-testid="account-platform-input"
-          >
+          />
         </div>
         <div class="form-field">
           <label class="form-label">Handle</label>
@@ -118,6 +118,19 @@
         </div>
         <div class="form-field">
           <label class="form-label">Cookies (optional)</label>
+          <p class="cookies-help">
+            To extract cookies: (1) open DevTools (F12), (2) go to Network tab,
+            (3) reload the page, (4) click any request to the site, (5) in the
+            Headers pane find the Cookie request header, (6) click the value to
+            select it, (7) copy and paste here.
+          </p>
+          <p
+            v-if="accountForm.platform"
+            class="cookies-example"
+            data-testid="cookie-example"
+          >
+            Example: {{ cookieExampleForPlatform(accountForm.platform) }}
+          </p>
           <textarea
             v-model="accountForm.cookies"
             class="form-textarea"
@@ -125,6 +138,13 @@
             rows="4"
             data-testid="account-cookies-input"
           />
+          <p
+            v-if="createCookieError"
+            class="form-error"
+            data-testid="create-cookie-error"
+          >
+            {{ createCookieError }}
+          </p>
         </div>
       </div>
     </n-modal>
@@ -145,6 +165,19 @@
           Cookies for <strong>{{ cookiesAccount?.handle }}</strong> on {{ cookiesAccount?.platform }}.
           Cookies are encrypted with AES-256-GCM before storage.
         </p>
+        <p class="cookies-help">
+          To extract cookies: (1) open DevTools (F12), (2) go to Network tab,
+          (3) reload the page, (4) click any request to the site, (5) in the
+          Headers pane find the Cookie request header, (6) click the value to
+          select it, (7) copy and paste here.
+        </p>
+        <p
+          v-if="cookiesAccount?.platform"
+          class="cookies-example"
+          data-testid="update-cookie-example"
+        >
+          Example: {{ cookieExampleForPlatform(cookiesAccount.platform) }}
+        </p>
         <div class="form-field">
           <label class="form-label">Cookies</label>
           <textarea
@@ -154,6 +187,13 @@
             rows="6"
             data-testid="update-cookies-input"
           />
+          <p
+            v-if="updateCookieError"
+            class="form-error"
+            data-testid="update-cookie-error"
+          >
+            {{ updateCookieError }}
+          </p>
         </div>
       </div>
     </n-modal>
@@ -180,7 +220,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { NButton, NModal, NDropdown } from 'naive-ui'
+import { NButton, NModal, NDropdown, NSelect } from 'naive-ui'
 import { useAccountsStore } from '../stores/accounts'
 import { useToastStore } from '../stores/toast'
 import type { AccountResult } from '../api/accounts'
@@ -188,14 +228,63 @@ import type { AccountResult } from '../api/accounts'
 const store = useAccountsStore()
 const toastStore = useToastStore()
 
+/** Supported platforms for the dropdown. */
+const platformOptions = [
+  { label: 'Instagram', value: 'instagram' },
+]
+
+/** Required cookie keys per platform. */
+const platformRequiredCookieKeys: Record<string, string[]> = {
+  instagram: ['sessionid', 'csrftoken', 'ds_user_id'],
+}
+
+/** Example cookie strings per platform. */
+const platformCookieExamples: Record<string, string> = {
+  instagram: 'ig_did=...; mid=...; sessionid=...; csrftoken=...; ds_user_id=...',
+}
+
+/** Returns a truncated example cookie string for a platform. */
+function cookieExampleForPlatform(platform: string): string {
+  return platformCookieExamples[platform] ?? ''
+}
+
+/** Parses cookie keys from a cookie string. */
+function parseCookieKeys(cookies: string): Set<string> {
+  const keys = new Set<string>()
+  for (const pair of cookies.split(';')) {
+    const trimmed = pair.trim()
+    if (!trimmed) continue
+    const eqIdx = trimmed.indexOf('=')
+    if (eqIdx > 0) {
+      keys.add(trimmed.substring(0, eqIdx).trim())
+    }
+  }
+  return keys
+}
+
+/** Validates cookies against required keys for a platform. Returns error string or empty. */
+function validateCookiesForPlatform(platform: string, cookies: string): string {
+  if (!cookies.trim()) return ''
+  const required = platformRequiredCookieKeys[platform]
+  if (!required) return ''
+  const present = parseCookieKeys(cookies)
+  const missing = required.filter(k => !present.has(k))
+  if (missing.length > 0) {
+    return `Missing required cookie keys for ${platform}: ${missing.join(', ')}`
+  }
+  return ''
+}
+
 // Create dialog state
 const showCreateDialog = ref(false)
-const accountForm = ref({ platform: '', handle: '', cookies: '' })
+const accountForm = ref({ platform: null as string | null, handle: '', cookies: '' })
+const createCookieError = ref('')
 
 // Cookies dialog state
 const showCookiesDialog = ref(false)
 const cookiesAccount = ref<AccountResult | null>(null)
 const cookiesForm = ref({ cookies: '' })
+const updateCookieError = ref('')
 
 // Delete dialog state
 const showDeleteDialog = ref(false)
@@ -244,18 +333,22 @@ function handleContextAction(key: string): void {
 }
 
 function openCreateDialog(): void {
-  accountForm.value = { platform: '', handle: '', cookies: '' }
+  accountForm.value = { platform: null, handle: '', cookies: '' }
+  createCookieError.value = ''
   showCreateDialog.value = true
 }
 
 function closeCreateDialog(): void {
   showCreateDialog.value = false
-  accountForm.value = { platform: '', handle: '', cookies: '' }
+  accountForm.value = { platform: null, handle: '', cookies: '' }
+  createCookieError.value = ''
 }
 
 async function handleSaveAccount(): Promise<boolean | void> {
   const { platform, handle, cookies } = accountForm.value
-  if (!platform.trim()) {
+  createCookieError.value = ''
+
+  if (!platform) {
     toastStore.addToast('warning', 'Platform is required')
     return false
   }
@@ -264,9 +357,18 @@ async function handleSaveAccount(): Promise<boolean | void> {
     return false
   }
 
+  // Validate cookie keys if cookies provided.
+  if (cookies.trim()) {
+    const err = validateCookiesForPlatform(platform, cookies)
+    if (err) {
+      createCookieError.value = err
+      return false
+    }
+  }
+
   try {
     const account = await store.create({
-      platform: platform.trim(),
+      platform,
       handle: handle.trim(),
     })
 
@@ -292,13 +394,22 @@ function closeCookiesDialog(): void {
   showCookiesDialog.value = false
   cookiesAccount.value = null
   cookiesForm.value = { cookies: '' }
+  updateCookieError.value = ''
 }
 
 async function handleSaveCookies(): Promise<boolean | void> {
   if (!cookiesAccount.value) return
+  updateCookieError.value = ''
   const { cookies } = cookiesForm.value
   if (!cookies.trim()) {
     toastStore.addToast('warning', 'Cookies cannot be empty')
+    return false
+  }
+
+  // Validate cookie keys.
+  const err = validateCookiesForPlatform(cookiesAccount.value.platform, cookies)
+  if (err) {
+    updateCookieError.value = err
     return false
   }
 
@@ -457,5 +568,29 @@ async function handleConfirmDelete(): Promise<void> {
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.4;
+}
+
+.cookies-help {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 4px 0;
+}
+
+.cookies-example {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: monospace;
+  background: var(--bg-color);
+  padding: 4px 8px;
+  border-radius: 3px;
+  margin: 0 0 4px 0;
+  word-break: break-all;
+}
+
+.form-error {
+  font-size: 12px;
+  color: var(--error-color, #e74c3c);
+  margin: 4px 0 0 0;
 }
 </style>

@@ -177,10 +177,14 @@ paths:
                         cookies:
                             type: string
                             description: Cookie string to encrypt and store
-                            example: Iusto tempore quas aut sit.
+                            example: Blanditiis officiis sit aliquam dolore numquam sunt.
             responses:
                 "204":
                     description: No Content response.
+                "400":
+                    description: Bad Request response.
+                    schema:
+                        $ref: '#/definitions/AccountsUpdateCookiesBadRequestResponseBody'
                 "404":
                     description: Not Found response.
                     schema:
@@ -1403,7 +1407,7 @@ definitions:
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
+            temporary: false
             timeout: true
         required:
             - name
@@ -1441,6 +1445,49 @@ definitions:
                 description: Is the error a timeout?
                 example: false
         description: Account not found (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: false
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    AccountsUpdateCookiesBadRequestResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Invalid input (default view)
         example:
             fault: false
             id: 123abc
@@ -1551,34 +1598,33 @@ definitions:
             destination:
                 type: string
                 description: Override output directory (optional)
-                example: Eum occaecati modi ipsa.
+                example: Suscipit voluptatem ut architecto.
             format:
                 type: string
                 description: 'Export format (default: kohya-ss)'
                 default: kohya-ss
-                example: Officiis labore.
+                example: Porro molestiae.
             study_slug:
                 type: string
                 description: Caption study slug (optional)
-                example: Suscipit voluptatem ut architecto.
+                example: Corporis quo rerum similique rerum neque.
             subject_ids:
                 type: array
                 items:
                     type: string
-                    example: Quia tenetur voluptatem.
+                    example: Quo optio eveniet.
                 description: Subject UUIDs to export
                 example:
-                    - Rerum similique rerum.
-                    - Dolores porro molestiae.
+                    - Et atque.
+                    - Amet culpa aut quia tenetur.
         example:
-            destination: Et sit magni sint corrupti eum dicta.
-            format: Voluptas sit sunt ipsa nobis.
-            study_slug: Dolore ratione nesciunt voluptas autem expedita.
+            destination: Dolore ratione nesciunt voluptas autem expedita.
+            format: Pariatur rem quod.
+            study_slug: Molestias quia pariatur.
             subject_ids:
-                - Quia accusantium consectetur ea accusantium.
+                - Labore quam eum occaecati modi ipsa.
+                - Delectus quia accusantium consectetur ea accusantium.
                 - Nisi quis sunt iusto.
-                - Molestias quia pariatur.
-                - Pariatur rem quod.
         required:
             - subject_ids
     CreateExportResult:
@@ -1588,30 +1634,30 @@ definitions:
             job_id:
                 type: string
                 description: Job run UUID
-                example: Veritatis eveniet nesciunt dolorum.
+                example: Ipsa voluptatem omnis.
             output_path:
                 type: string
                 description: Export output directory path
-                example: Laboriosam ut itaque est a magnam.
+                example: Corrupti et id aut quas maiores.
             status:
                 type: string
                 description: Job status
-                example: Aut quas.
+                example: Veritatis eveniet nesciunt dolorum.
             total_items:
                 type: integer
                 description: Total samples to export
-                example: 6255930429969079298
+                example: 8050533606496753007
                 format: int64
             trace_id:
                 type: string
                 description: Trace ID for pipeline tracking
-                example: Et corrupti et.
+                example: Illum et assumenda explicabo praesentium officiis.
         example:
-            job_id: Eaque qui provident culpa alias ab.
-            output_path: Ratione in laborum itaque quae minus.
-            status: Officiis sunt soluta molestiae maiores aut architecto.
-            total_items: 5977850289473460150
-            trace_id: Vitae sed.
+            job_id: Laboriosam ut itaque est a magnam.
+            output_path: Sunt soluta molestiae.
+            status: Vitae sed.
+            total_items: 4372965412530699217
+            trace_id: Eaque qui provident culpa alias ab.
         required:
             - job_id
             - trace_id
@@ -1626,28 +1672,29 @@ definitions:
                 type: string
                 description: 'Export format (default: kohya-ss)'
                 default: kohya-ss
-                example: Aut quo facilis dolore nobis.
+                example: Dignissimos quasi dignissimos aliquid aut.
             study_slug:
                 type: string
                 description: Caption study slug (optional)
-                example: Dignissimos quasi dignissimos aliquid aut.
+                example: Facere aliquam exercitationem numquam.
             subject_ids:
                 type: array
                 items:
                     type: string
-                    example: Est ullam porro voluptatum sit laboriosam assumenda.
+                    example: Dicta asperiores commodi ut fugiat dolor impedit.
                 description: Subject UUIDs to include in zip
                 example:
-                    - Atque adipisci quis facere.
-                    - Exercitationem numquam.
+                    - Delectus qui animi possimus.
+                    - Est ullam porro voluptatum sit laboriosam assumenda.
+                    - Enim atque adipisci.
         example:
-            format: Accusamus soluta est nemo magnam vero.
-            study_slug: Molestias doloribus harum vel excepturi repellendus facere.
+            format: Et et earum facere quidem aut.
+            study_slug: Inventore praesentium doloremque totam ea quia.
             subject_ids:
-                - Sint sed vero expedita in commodi velit.
+                - Quo facilis.
+                - Nobis ut sed sint sed vero.
+                - In commodi velit.
                 - Saepe saepe consequatur.
-                - Inventore praesentium doloremque totam ea quia.
-                - Et et earum facere quidem aut.
         required:
             - subject_ids
     ExportsCreateBadRequestResponseBody:
@@ -1673,7 +1720,7 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
@@ -1700,50 +1747,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: false
-            id:
-                type: string
-                description: ID is a unique identifier for this particular occurrence of the problem.
-                example: 123abc
-            message:
-                type: string
-                description: Message is a human-readable explanation specific to this occurrence of the problem.
-                example: parameter 'p' must be an integer
-            name:
-                type: string
-                description: Name is the name of this class of errors.
-                example: bad_request
-            temporary:
-                type: boolean
-                description: Is the error temporary?
-                example: false
-            timeout:
-                type: boolean
-                description: Is the error a timeout?
-                example: false
-        description: Subject or study not found (default view)
-        example:
-            fault: false
-            id: 123abc
-            message: parameter 'p' must be an integer
-            name: bad_request
-            temporary: false
-            timeout: false
-        required:
-            - name
-            - id
-            - message
-            - temporary
-            - timeout
-            - fault
-    ExportsDownloadZipBadRequestResponseBody:
-        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
-        type: object
-        properties:
-            fault:
-                type: boolean
-                description: Is the error a server-side fault?
-                example: false
+                example: true
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1764,7 +1768,7 @@ definitions:
                 type: boolean
                 description: Is the error a timeout?
                 example: true
-        description: Invalid input or no kept samples (default view)
+        description: Subject or study not found (default view)
         example:
             fault: false
             id: 123abc
@@ -1772,6 +1776,49 @@ definitions:
             name: bad_request
             temporary: true
             timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    ExportsDownloadZipBadRequestResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Invalid input or no kept samples (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: false
+            timeout: true
         required:
             - name
             - id
@@ -1806,15 +1853,15 @@ definitions:
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Subject or study not found (default view)
         example:
-            fault: true
+            fault: false
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: false
-            timeout: true
+            temporary: true
+            timeout: false
         required:
             - name
             - id
@@ -1837,29 +1884,20 @@ definitions:
                 type: object
                 description: Per-subsystem health status
                 example:
-                    Dolores enim praesentium.:
-                        message: Deleniti quis.
-                        ok: false
-                    Modi sit qui porro ea dolores quos.:
-                        message: Deleniti quis.
-                        ok: false
-                    Nihil quo aut consequatur.:
-                        message: Deleniti quis.
-                        ok: false
+                    Sit qui porro ea dolores quos.:
+                        message: Quis consequatur id fuga assumenda consequatur porro.
+                        ok: true
                 additionalProperties:
                     $ref: '#/definitions/SubsystemStatus'
         example:
             status: healthy
             subsystems:
-                Et sed laudantium quia eos.:
-                    message: Deleniti quis.
-                    ok: false
-                Illum et assumenda explicabo praesentium officiis.:
-                    message: Deleniti quis.
-                    ok: false
-                Recusandae ipsa voluptatem omnis.:
-                    message: Deleniti quis.
-                    ok: false
+                Enim praesentium dolore et et.:
+                    message: Quis consequatur id fuga assumenda consequatur porro.
+                    ok: true
+                Laudantium quia eos eum.:
+                    message: Quis consequatur id fuga assumenda consequatur porro.
+                    ok: true
         required:
             - status
             - subsystems
@@ -2168,74 +2206,74 @@ definitions:
             completed_items:
                 type: integer
                 description: Completed items count
-                example: 1818837325250196565
+                example: 4854681142757799196
                 format: int64
             created_at:
                 type: string
                 description: Creation timestamp (RFC3339)
-                example: Odio ut harum iusto autem aliquam.
+                example: Placeat qui sed qui.
             failed_items:
                 type: integer
                 description: Failed items count
-                example: 5432594447996022892
+                example: 7864296107368749750
                 format: int64
             finished_at:
                 type: string
                 description: Finish timestamp (RFC3339, null if running)
-                example: Placeat qui sed qui.
+                example: Non sed ut et autem vero.
             id:
                 type: string
                 description: Job run UUID
-                example: Aut hic.
+                example: Molestias doloribus harum vel excepturi repellendus facere.
             output_path:
                 type: string
                 description: Export output directory path (optional)
-                example: Sed ipsam.
+                example: Asperiores doloremque laudantium dolor.
             sample_count:
                 type: integer
                 description: Final exported sample count (optional)
-                example: 432047351954968281
+                example: 648427403598558499
                 format: int64
             started_at:
                 type: string
                 description: Start timestamp (RFC3339)
-                example: Non sed ut et autem vero.
+                example: Sed et sed ipsam quam.
             status:
                 type: string
                 description: Job status
-                example: Asperiores doloremque laudantium dolor.
+                example: Autem explicabo quo natus quo est facilis.
             study_id:
                 type: string
                 description: Caption study UUID (optional)
-                example: Accusamus earum.
+                example: Dolores enim quis totam asperiores.
             subject_id:
                 type: string
                 description: Subject UUID (optional)
-                example: Autem explicabo quo natus quo est facilis.
+                example: Aut hic.
             total_items:
                 type: integer
                 description: Total items (null until known)
-                example: 648427403598558499
+                example: 803934411565518722
                 format: int64
             type:
                 type: string
                 description: Job type
-                example: Dolores enim quis totam asperiores.
+                example: Accusamus soluta est nemo magnam vero.
         description: A job run summary
         example:
-            completed_items: 2184101133813896414
+            completed_items: 6282966075823993279
             created_at: Soluta ab beatae ut dolor.
-            failed_items: 5234294820894136124
-            finished_at: Et vero.
-            id: Voluptatem dignissimos dignissimos.
-            output_path: Soluta quas odit.
-            sample_count: 2087518031702423718
-            started_at: Voluptatem quisquam sit aut sequi eius.
-            status: Perferendis officia.
-            study_id: Eaque et vel nobis voluptate debitis.
-            subject_id: Blanditiis vel enim deleniti optio odit eum.
-            total_items: 8469047790052746788
-            type: Quam repellendus sint dignissimos in quod.
+            failed_items: 2643913884795552669
+            finished_at: Aut sequi eius reiciendis et vero.
+            id: Odio ut harum iusto autem aliquam.
+            output_path: Omnis molestias.
+            sample_count: 177104041514602475
+            started_at: Quas odit molestias voluptatem voluptatem quisquam.
+            status: Eaque et vel nobis voluptate debitis.
+            study_id: Blanditiis vel enim deleniti optio odit eum.
+            subject_id: Quam repellendus sint dignissimos in quod.
+            total_items: 2919210768790882591
+            type: Voluptatem dignissimos dignissimos.
         required:
             - id
             - type
@@ -3838,13 +3876,13 @@ definitions:
             message:
                 type: string
                 description: Human-readable status detail
-                example: Est voluptas perspiciatis fugit quis repellendus.
+                example: Dolor numquam voluptas omnis cum laborum.
             ok:
                 type: boolean
                 description: Whether the subsystem is healthy
                 example: true
         example:
-            message: Dolor numquam voluptas omnis cum laborum.
+            message: Nihil quo aut consequatur.
             ok: true
         required:
             - ok

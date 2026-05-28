@@ -47,7 +47,7 @@ func UsageCommands() []string {
 func UsageExamples() string {
 	return os.Args[0] + " " + "accounts list" + "\n" +
 		os.Args[0] + " " + "health check" + "\n" +
-		os.Args[0] + " " + "exports create --body '{\n      \"destination\": \"Blanditiis cumque eligendi maxime minus.\",\n      \"format\": \"Voluptatibus ut.\",\n      \"study_slug\": \"Est id unde repellendus.\",\n      \"subject_ids\": [\n         \"Officia in tempora vero natus.\",\n         \"Eos eos dolor minima qui dolor.\",\n         \"Est provident quasi ea voluptates.\"\n      ]\n   }'" + "\n" +
+		os.Args[0] + " " + "exports create --body '{\n      \"destination\": \"Excepturi consequatur ut.\",\n      \"format\": \"Modi ullam.\",\n      \"study_slug\": \"Blanditiis cumque eligendi maxime minus.\",\n      \"subject_ids\": [\n         \"Provident quasi.\",\n         \"Voluptates repudiandae est.\",\n         \"Unde repellendus.\",\n         \"Voluptatibus ut.\"\n      ]\n   }'" + "\n" +
 		os.Args[0] + " " + "jobs list --type \"Numquam animi accusamus.\" --status \"Ea ipsam.\" --offset 544935534910468235 --limit 98" + "\n" +
 		os.Args[0] + " " + "projects list" + "\n" +
 		""
@@ -688,7 +688,7 @@ func accountsDeleteUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "accounts delete --id \"Accusamus enim qui quia.\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "accounts delete --id \"Qui quia velit.\"")
 }
 
 // healthUsage displays the usage of the health command and its subcommands.
@@ -743,7 +743,7 @@ func exportsCreateUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "exports create --body '{\n      \"destination\": \"Blanditiis cumque eligendi maxime minus.\",\n      \"format\": \"Voluptatibus ut.\",\n      \"study_slug\": \"Est id unde repellendus.\",\n      \"subject_ids\": [\n         \"Officia in tempora vero natus.\",\n         \"Eos eos dolor minima qui dolor.\",\n         \"Est provident quasi ea voluptates.\"\n      ]\n   }'")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "exports create --body '{\n      \"destination\": \"Excepturi consequatur ut.\",\n      \"format\": \"Modi ullam.\",\n      \"study_slug\": \"Blanditiis cumque eligendi maxime minus.\",\n      \"subject_ids\": [\n         \"Provident quasi.\",\n         \"Voluptates repudiandae est.\",\n         \"Unde repellendus.\",\n         \"Voluptatibus ut.\"\n      ]\n   }'")
 }
 
 func exportsDownloadZipUsage() {
@@ -761,7 +761,7 @@ func exportsDownloadZipUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "exports download-zip --body '{\n      \"format\": \"Corrupti ut qui tempora nihil.\",\n      \"study_slug\": \"Corrupti quia.\",\n      \"subject_ids\": [\n         \"Nulla ratione sed ex optio.\",\n         \"Laudantium dolores numquam doloribus hic reprehenderit ut.\",\n         \"Dolorem laudantium qui est vitae nihil et.\",\n         \"Libero molestiae esse laudantium.\"\n      ]\n   }'")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "exports download-zip --body '{\n      \"format\": \"Corrupti ut qui tempora nihil.\",\n      \"study_slug\": \"Corrupti quia.\",\n      \"subject_ids\": [\n         \"Hic reprehenderit ut tempore dolorem.\",\n         \"Qui est vitae.\",\n         \"Et enim.\",\n         \"Molestiae esse laudantium.\"\n      ]\n   }'")
 }
 
 // jobsUsage displays the usage of the jobs command and its subcommands.

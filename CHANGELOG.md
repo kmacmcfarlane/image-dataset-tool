@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+
 ### S-022: Research spike — auto-correction helpers
 - Recommendation doc at `docs/auto-correction-spike.md` with POC code in `docs/spike-poc/auto-correction/`
 - Solid-color border removal recommended as build-first: stdlib-only, <1ms, 5/6 accuracy on synthetic images
@@ -100,12 +101,9 @@ All notable changes to this project will be documented in this file.
 - Backend API: `GET /api/setup/status` + `POST /api/setup/generate-key` (custom handlers, not Goa)
 
 ### S-011: Account management: CRUD social media accounts
-- Five Goa-designed account API endpoints: POST /v1/accounts (201, unique platform+handle), GET /v1/accounts (list, never returns cookies), GET /v1/accounts/{id} (detail with linked subjects), PUT /v1/accounts/{id}/cookies (AES-256-GCM encryption), DELETE /v1/accounts/{id} (cascades to subject_accounts links)
-- Cookies encrypted with AES-256-GCM before storage; never exposed in API responses, logs, or error messages
-- Backend AccountStore with encryption integration, AccountService with validation and normalization, Goa API layer
-- Frontend /accounts view with account card grid, create dialog (platform + handle + optional cookies textarea), update cookies dialog, delete confirmation
-- Pinia accounts store, API client module, full Ginkgo test coverage (store + service layers), Vitest store tests
-- Playwright E2E: CRUD round trip, cookie set/update flow, validation
+- Five Goa-designed account API endpoints with AES-256-GCM cookie encryption; cookies never exposed in API responses, logs, or error messages
+- Platform dropdown (enum-validated on backend); cookie extraction help text with DevTools steps and platform-specific examples
+- Cookie key validation: required keys checked client-side and server-side (instagram: sessionid, csrftoken, ds_user_id); 400 on missing keys
 
 ### S-010: CRUD subjects within a project
 - Five Goa-designed subject API endpoints scoped under /v1/projects/{pid}/subjects: POST (201), GET list with sample counts, GET detail with linked accounts + sample stats, PUT (rename with directory rename on slug change), DELETE (soft/hard pattern matching projects)

@@ -15,11 +15,20 @@ import { bypassSetupWizard } from './helpers'
 
 // Derive the backend URL from Playwright's baseURL config.
 // In Docker Compose E2E, baseURL is http://frontend:3000 → backend is http://backend:8080.
-// Locally, baseURL is http://localhost:3000 → backend is http://localhost:8080.
+// Locally, baseURL is http://localhost:3002 → backend is http://localhost:8080.
 function backendURL(baseURL: string | undefined): string {
-  return (baseURL ?? 'http://localhost:3000').includes('frontend')
+  return (baseURL ?? 'http://localhost:3002').includes('frontend')
     ? 'http://backend:8080'
     : 'http://localhost:8080'
+}
+
+// Derive the frontend origin (used as the CORS Origin header).
+// In Docker Compose E2E, the CORS_ORIGIN is set to http://frontend:3000.
+// Locally, the backend default CORS_ORIGIN is http://localhost:3002.
+function frontendOrigin(baseURL: string | undefined): string {
+  return (baseURL ?? 'http://localhost:3002').includes('frontend')
+    ? 'http://frontend:3000'
+    : 'http://localhost:3002'
 }
 
 // ---------------------------------------------------------------------------
@@ -143,18 +152,20 @@ test('GET /api/sse EventSource connects successfully via proxy', async ({ page, 
 // ---------------------------------------------------------------------------
 
 test('backend sets CORS header for frontend origin', async ({ request, baseURL }) => {
+  const origin = frontendOrigin(baseURL)
   const resp = await request.get(`${backendURL(baseURL)}/health`, {
-    headers: { Origin: 'http://localhost:3000' },
+    headers: { Origin: origin },
   })
   const acao = resp.headers()['access-control-allow-origin'] ?? ''
-  expect(acao).toBe('http://localhost:3000')
+  expect(acao).toBe(origin)
 })
 
 test('OPTIONS preflight returns 204', async ({ request, baseURL }) => {
+  const origin = frontendOrigin(baseURL)
   const resp = await request.fetch(`${backendURL(baseURL)}/v1/settings/secrets`, {
     method: 'OPTIONS',
     headers: {
-      Origin: 'http://localhost:3000',
+      Origin: origin,
       'Access-Control-Request-Method': 'GET',
     },
   })

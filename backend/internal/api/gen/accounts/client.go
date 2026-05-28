@@ -75,6 +75,7 @@ func (c *Client) Create(ctx context.Context, p *CreateAccountPayload) (res *Acco
 // UpdateCookies calls the "update_cookies" endpoint of the "accounts" service.
 // UpdateCookies may return the following errors:
 //   - "not_found" (type *goa.ServiceError): Account not found
+//   - "bad_request" (type *goa.ServiceError): Invalid input
 //   - error: internal error
 func (c *Client) UpdateCookies(ctx context.Context, p *UpdateCookiesPayload) (err error) {
 	_, err = c.UpdateCookiesEndpoint(ctx, p)

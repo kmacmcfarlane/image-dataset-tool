@@ -65,7 +65,10 @@ async function createAccount(
   await page.locator('[data-testid="create-account-btn"]').click()
   const dialog = page.locator('[data-testid="account-dialog"]')
   await expect(dialog).toBeVisible()
-  await page.locator('[data-testid="account-platform-input"]').fill(platform)
+  // Platform is now a dropdown select — click to open, then select option.
+  const platformLabel = platform.charAt(0).toUpperCase() + platform.slice(1)
+  await page.locator('[data-testid="account-platform-input"]').click()
+  await page.getByText(platformLabel, { exact: true }).click()
   await page.locator('[data-testid="account-handle-input"]').fill(handle)
   await dialog.getByRole('button', { name: 'Save' }).click()
   await expect(dialog).not.toBeVisible()

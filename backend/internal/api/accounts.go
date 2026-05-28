@@ -93,6 +93,9 @@ func (s *AccountsService) UpdateCookies(_ context.Context, payload *accounts.Upd
 		if errors.Is(err, service.ErrNotFound) {
 			return accounts.MakeNotFound(fmt.Errorf("account %q not found", payload.ID))
 		}
+		if errors.Is(err, service.ErrBadRequest) {
+			return accounts.MakeBadRequest(err)
+		}
 		return fmt.Errorf("update cookies: %w", err)
 	}
 	return nil

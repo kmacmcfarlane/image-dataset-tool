@@ -53,6 +53,7 @@ var _ = Service("accounts", func() {
 		Description("Update cookies for an account; encrypts with AES-256-GCM")
 		Payload(UpdateCookiesPayload)
 		Error("not_found", ErrorResult, "Account not found")
+		Error("bad_request", ErrorResult, "Invalid input")
 		HTTP(func() {
 			PUT("/v1/accounts/{id}/cookies")
 			Body(func() {
@@ -60,6 +61,7 @@ var _ = Service("accounts", func() {
 			})
 			Response(StatusNoContent)
 			Response("not_found", StatusNotFound)
+			Response("bad_request", StatusBadRequest)
 		})
 	})
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -11,6 +12,52 @@ import (
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
 )
+
+// SupportedPlatforms is the list of allowed platform values.
+var SupportedPlatforms = []string{"instagram"}
+
+// PlatformRequiredCookieKeys maps each platform to its required cookie key names.
+var PlatformRequiredCookieKeys = map[string][]string{
+	"instagram": {"sessionid", "csrftoken", "ds_user_id"},
+}
+
+// isSupportedPlatform checks if a platform is in the allowed list.
+func isSupportedPlatform(platform string) bool {
+	return slices.Contains(SupportedPlatforms, platform)
+}
+
+// parseCookieKeys extracts cookie key names from a cookie string.
+func parseCookieKeys(cookies string) map[string]bool {
+	keys := make(map[string]bool)
+	for pair := range strings.SplitSeq(cookies, ";") {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+		eqIdx := strings.Index(pair, "=")
+		if eqIdx > 0 {
+			keys[strings.TrimSpace(pair[:eqIdx])] = true
+		}
+	}
+	return keys
+}
+
+// validateCookieKeys checks that required cookie keys for a platform are present.
+// Returns a list of missing key names, or nil if all required keys are present.
+func validateCookieKeys(platform, cookies string) []string {
+	required, ok := PlatformRequiredCookieKeys[platform]
+	if !ok {
+		return nil
+	}
+	present := parseCookieKeys(cookies)
+	var missing []string
+	for _, key := range required {
+		if !present[key] {
+			missing = append(missing, key)
+		}
+	}
+	return missing
+}
 
 // AccountRepository defines the persistence interface used by AccountService.
 type AccountRepository interface {
@@ -40,6 +87,10 @@ func (s *AccountService) Create(platform, handle string) (*model.Account, error)
 
 	if platform == "" {
 		return nil, fmt.Errorf("platform is required: %w", ErrBadRequest)
+	}
+	if !isSupportedPlatform(platform) {
+		return nil, fmt.Errorf("unsupported platform %q; supported: %s: %w",
+			platform, strings.Join(SupportedPlatforms, ", "), ErrBadRequest)
 	}
 	if handle == "" {
 		return nil, fmt.Errorf("handle is required: %w", ErrBadRequest)
@@ -102,11 +153,17 @@ func (s *AccountService) List() ([]*model.Account, error) {
 // UpdateCookies encrypts and stores cookies for an account.
 // Cookies content is never logged.
 func (s *AccountService) UpdateCookies(id string, cookies string) error {
-	if _, err := s.store.Get(id); err != nil {
+	acct, err := s.store.Get(id)
+	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return fmt.Errorf("account %q: %w", id, ErrNotFound)
 		}
 		return err
+	}
+
+	if missing := validateCookieKeys(acct.Platform, cookies); len(missing) > 0 {
+		return fmt.Errorf("missing required cookie keys for %s: %s: %w",
+			acct.Platform, strings.Join(missing, ", "), ErrBadRequest)
 	}
 
 	if err := s.store.UpdateCookies(id, []byte(cookies)); err != nil {

@@ -133,6 +133,24 @@ type UpdateCookiesNotFoundResponseBody struct {
 	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
+// UpdateCookiesBadRequestResponseBody is the type of the "accounts" service
+// "update_cookies" endpoint HTTP response body for the "bad_request" error.
+type UpdateCookiesBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
 // DeleteNotFoundResponseBody is the type of the "accounts" service "delete"
 // endpoint HTTP response body for the "not_found" error.
 type DeleteNotFoundResponseBody struct {
@@ -287,6 +305,20 @@ func NewCreateBadRequestResponseBody(res *goa.ServiceError) *CreateBadRequestRes
 // result of the "update_cookies" endpoint of the "accounts" service.
 func NewUpdateCookiesNotFoundResponseBody(res *goa.ServiceError) *UpdateCookiesNotFoundResponseBody {
 	body := &UpdateCookiesNotFoundResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateCookiesBadRequestResponseBody builds the HTTP response body from
+// the result of the "update_cookies" endpoint of the "accounts" service.
+func NewUpdateCookiesBadRequestResponseBody(res *goa.ServiceError) *UpdateCookiesBadRequestResponseBody {
+	body := &UpdateCookiesBadRequestResponseBody{
 		Name:      res.Name,
 		ID:        res.ID,
 		Message:   res.Message,

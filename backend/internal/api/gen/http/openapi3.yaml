@@ -23,12 +23,9 @@ paths:
                             example:
                                 status: healthy
                                 subsystems:
-                                    Fuga assumenda.:
-                                        message: Deleniti quis.
-                                        ok: false
-                                    Porro voluptate non.:
-                                        message: Deleniti quis.
-                                        ok: false
+                                    Necessitatibus exercitationem veniam hic amet.:
+                                        message: Quis consequatur id fuga assumenda consequatur porro.
+                                        ok: true
                 "503":
                     description: 'unhealthy: One or more subsystems are unhealthy'
                     content:
@@ -38,9 +35,12 @@ paths:
                             example:
                                 status: healthy
                                 subsystems:
-                                    Veniam hic amet.:
-                                        message: Deleniti quis.
-                                        ok: false
+                                    Eos eos dolor minima qui dolor.:
+                                        message: Quis consequatur id fuga assumenda consequatur porro.
+                                        ok: true
+                                    Officia in tempora vero natus.:
+                                        message: Quis consequatur id fuga assumenda consequatur porro.
+                                        ok: true
     /v1/accounts:
         get:
             tags:
@@ -251,6 +251,12 @@ paths:
             responses:
                 "204":
                     description: No Content response.
+                "400":
+                    description: 'bad_request: Invalid input'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
                 "404":
                     description: 'not_found: Account not found'
                     content:
@@ -271,13 +277,14 @@ paths:
                         schema:
                             $ref: '#/components/schemas/CreateExportPayload'
                         example:
-                            destination: Blanditiis cumque eligendi maxime minus.
-                            format: Voluptatibus ut.
-                            study_slug: Est id unde repellendus.
+                            destination: Excepturi consequatur ut.
+                            format: Modi ullam.
+                            study_slug: Blanditiis cumque eligendi maxime minus.
                             subject_ids:
-                                - Officia in tempora vero natus.
-                                - Eos eos dolor minima qui dolor.
-                                - Est provident quasi ea voluptates.
+                                - Provident quasi.
+                                - Voluptates repudiandae est.
+                                - Unde repellendus.
+                                - Voluptatibus ut.
             responses:
                 "202":
                     description: Accepted response.
@@ -286,11 +293,11 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/CreateExportResult'
                             example:
-                                job_id: Modi ullam.
-                                output_path: Consequatur natus ea iste quos et.
-                                status: Repellendus doloremque facilis.
-                                total_items: 6817092265957751541
-                                trace_id: Excepturi consequatur ut.
+                                job_id: Repellendus doloremque facilis.
+                                output_path: Minus non laboriosam nulla ratione.
+                                status: Labore rerum molestiae.
+                                total_items: 449414824419031259
+                                trace_id: Corrupti consequatur natus ea iste quos.
                 "400":
                     description: 'bad_request: Invalid input or no kept samples'
                     content:
@@ -320,10 +327,10 @@ paths:
                             format: Corrupti ut qui tempora nihil.
                             study_slug: Corrupti quia.
                             subject_ids:
-                                - Nulla ratione sed ex optio.
-                                - Laudantium dolores numquam doloribus hic reprehenderit ut.
-                                - Dolorem laudantium qui est vitae nihil et.
-                                - Libero molestiae esse laudantium.
+                                - Hic reprehenderit ut tempore dolorem.
+                                - Qui est vitae.
+                                - Et enim.
+                                - Molestiae esse laudantium.
             responses:
                 "200":
                     description: OK response.

@@ -306,6 +306,7 @@ func EncodeUpdateCookiesRequest(encoder func(*http.Request) goahttp.Encoder) fun
 // body should be restored after having been read.
 // DecodeUpdateCookiesResponse may return the following errors:
 //   - "not_found" (type *goa.ServiceError): http.StatusNotFound
+//   - "bad_request" (type *goa.ServiceError): http.StatusBadRequest
 //   - error: internal error
 func DecodeUpdateCookiesResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
@@ -338,6 +339,20 @@ func DecodeUpdateCookiesResponse(decoder func(*http.Response) goahttp.Decoder, r
 				return nil, goahttp.ErrValidationError("accounts", "update_cookies", err)
 			}
 			return nil, NewUpdateCookiesNotFound(&body)
+		case http.StatusBadRequest:
+			var (
+				body UpdateCookiesBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("accounts", "update_cookies", err)
+			}
+			err = ValidateUpdateCookiesBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("accounts", "update_cookies", err)
+			}
+			return nil, NewUpdateCookiesBadRequest(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
 			return nil, goahttp.ErrInvalidResponse("accounts", "update_cookies", resp.StatusCode, string(body))

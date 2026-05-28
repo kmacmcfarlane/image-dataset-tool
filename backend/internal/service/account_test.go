@@ -71,6 +71,13 @@ var _ = Describe("AccountService", func() {
 			Expect(err).To(MatchError(ContainSubstring("bad request")))
 		})
 
+		It("returns ErrBadRequest for unsupported platform", func() {
+			_, err := svc.Create("tiktok", "handle")
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(MatchError(ContainSubstring("unsupported platform")))
+			Expect(err).To(MatchError(ContainSubstring("bad request")))
+		})
+
 		It("returns ErrBadRequest for empty handle", func() {
 			_, err := svc.Create("instagram", "")
 			Expect(err).To(HaveOccurred())
@@ -107,7 +114,7 @@ var _ = Describe("AccountService", func() {
 		It("returns all accounts", func() {
 			_, err := svc.Create("instagram", "user1")
 			Expect(err).NotTo(HaveOccurred())
-			_, err = svc.Create("tiktok", "user2")
+			_, err = svc.Create("instagram", "user2")
 			Expect(err).NotTo(HaveOccurred())
 
 			list, err := svc.List()
@@ -117,17 +124,29 @@ var _ = Describe("AccountService", func() {
 	})
 
 	Describe("UpdateCookies", func() {
-		It("stores cookies for an existing account", func() {
+		It("stores cookies for an existing account when all required keys present", func() {
 			a, err := svc.Create("instagram", "testuser")
 			Expect(err).NotTo(HaveOccurred())
 
-			err = svc.UpdateCookies(a.ID, "session_id=abc123")
+			err = svc.UpdateCookies(a.ID, "sessionid=abc; csrftoken=xyz; ds_user_id=123")
 			Expect(err).NotTo(HaveOccurred())
 
 			// Verify has_cookies via Get
 			got, err := svc.Get(a.ID)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(got.HasCookies).To(BeTrue())
+		})
+
+		It("returns ErrBadRequest when required cookie keys are missing", func() {
+			a, err := svc.Create("instagram", "testuser")
+			Expect(err).NotTo(HaveOccurred())
+
+			err = svc.UpdateCookies(a.ID, "sessionid=abc; mid=def")
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(MatchError(ContainSubstring("missing required cookie keys")))
+			Expect(err).To(MatchError(ContainSubstring("csrftoken")))
+			Expect(err).To(MatchError(ContainSubstring("ds_user_id")))
+			Expect(err).To(MatchError(ContainSubstring("bad request")))
 		})
 
 		It("returns ErrNotFound for missing account", func() {
