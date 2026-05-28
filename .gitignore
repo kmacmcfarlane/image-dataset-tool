@@ -75,3 +75,6 @@ __pycache__/
 # Spike POC generated files
 docs/spike-poc/*/testdata/
 docs/spike-poc/*/output/
+
+# Temp files from container
+./tmp/

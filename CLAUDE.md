@@ -19,6 +19,12 @@ The loop prompt is /agent/PROMPT.md. The Ralph runner is `ralph` (via claude-san
 Operate only on repository state (files + git). Treat each cycle as stateless.
 Never claim completion unless acceptance criteria are met and tests pass.
 
+## 1.5) Coding discipline
+1. **Think first** — state assumptions before implementing. If multiple interpretations exist, present them — don't pick silently. If something is unclear, stop and ask.
+2. **Simplicity** — minimum code that solves the problem. No speculative features, abstractions for single-use code, or error handling for impossible scenarios. If 200 lines could be 50, rewrite.
+3. **Surgical changes** — touch only what the task requires. Don't improve adjacent code, comments, or formatting. Remove only orphans YOUR changes created. Match existing style. Every changed line must trace to the request.
+4. **Goal-driven** — define verifiable success criteria before starting. Transform vague tasks ("fix the bug") into testable outcomes ("write a failing test, then make it pass"). Loop until verified.
+
 ## 2) Safety rules (non-negotiable)
 - Do not run destructive shell commands that affect anything outside of the project directory. No changes to the OS or underlying system.
 - Never exfiltrate secrets. Never print env vars. Never log tokens/keys/passwords.
