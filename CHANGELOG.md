@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### S-014: IGClient interface + HTTPIGClient implementation
+- `IGClient` interface in `internal/service/ig/` with `FetchProfile()`, `FetchPosts()`, `DownloadMedia()`, `SessionValid()`
+- `HTTPIGClient` implementation using `net/http`; hits REST endpoint `/api/v1/feed/user/{id}/?count={n}` with browser session cookies
+- Cookie jar imported from browser devtools (raw cookie string); session TTL guard checks `session_expires_at` before each API call
+- Carousel support: `media_type=8` iterates `carousel_media[]` sub-items; skips video (`media_type=2`) with logged reason
+- CDN downloads use `Referer` header only (no session cookies)
+- `ig_request_log` SQLite table (migration v4) for request observability: timestamp, account_id, endpoint, http_status, is_throttled, is_denied, response_time_ms, public_ip, error_detail
+- On 429: logs `is_throttled=true`, returns `ErrThrottled`, sends Discord warning
+- On 401/403: logs `is_denied=true`, returns `ErrDenied`, sends Discord alert
+- On session expiry: halts job, sends Discord alert
+- Public IP resolved via `https://api.ipify.org` on job start; IP rotation check warns via Discord if same IP as last session
+- `session_expires_at` column added to `accounts` table with get/set store methods
+- 23 unit tests with `httptest.Server`: request construction, cookie/header injection, fixture-based feed parsing (single image, carousel, video skip, mixed), error paths (429/401/403), IP rotation, session TTL
+- 6 store-level tests for `ig_request_log` insert and last-IP query
 
 ### S-022: Research spike — auto-correction helpers
 - Recommendation doc at `docs/auto-correction-spike.md` with POC code in `docs/spike-poc/auto-correction/`
