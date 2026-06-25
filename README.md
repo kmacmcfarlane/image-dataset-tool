@@ -93,7 +93,7 @@ your-project/
 │   ├── Dockerfile            # nginx production image
 │   └── Dockerfile.dev        # Vite dev server
 ├── docs/                     # Architecture, database, and API docs
-├── agent/                    # Agent workflow docs and backlog
+├── .claude-sandbox/agent/                    # Agent workflow docs and backlog
 ├── scripts/                  # Tooling scripts (MCP servers)
 ├── docker-compose.yml        # Production compose
 ├── docker-compose.dev.yml    # Dev overlay
@@ -145,11 +145,11 @@ cd frontend && npx vitest run
 This project includes a complete Claude Code agent workflow. See:
 
 - [CLAUDE.md](CLAUDE.md) — Always-loaded operating context
-- [agent/AGENT_FLOW.md](agent/AGENT_FLOW.md) — Deterministic development loop
-- [agent/DEVELOPMENT_PRACTICES.md](agent/DEVELOPMENT_PRACTICES.md) — Engineering standards
-- [agent/TEST_PRACTICES.md](agent/TEST_PRACTICES.md) — Testing standards
-- [agent/PRD.md](agent/PRD.md) — Product requirements (write yours here)
-- [agent/backlog.yaml](agent/backlog.yaml) — Story tracker
+- [.claude-sandbox/agent/AGENT_FLOW.md](.claude-sandbox/agent/AGENT_FLOW.md) — Deterministic development loop
+- [.claude-sandbox/agent/DEVELOPMENT_PRACTICES.md](.claude-sandbox/agent/DEVELOPMENT_PRACTICES.md) — Engineering standards
+- [.claude-sandbox/agent/TEST_PRACTICES.md](.claude-sandbox/agent/TEST_PRACTICES.md) — Testing standards
+- [.claude-sandbox/agent/PRD.md](.claude-sandbox/agent/PRD.md) — Product requirements (write yours here)
+- [.claude-sandbox/agent/backlog.yaml](.claude-sandbox/agent/backlog.yaml) — Story tracker
 
 ### Running with claude-sandbox
 

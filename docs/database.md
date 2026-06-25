@@ -19,7 +19,7 @@ job_runs, and job_errors.
 Sensitive values (`cookies_blob` in `subject_accounts`, `value_encrypted` in `secrets`)
 are encrypted with AES-256-GCM at the application level before storage. The encryption
 key is stored in `$DATA_DIR/secret.key` (mode 0600), mounted into
-the container via `.claude-sandbox.yaml`.
+the container via `.claude-sandbox/config.yaml`.
 
 ## Tables
 

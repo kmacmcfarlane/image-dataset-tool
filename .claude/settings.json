@@ -59,7 +59,7 @@
       "Bash(wc:*)",
       "WebSearch",
       "WebFetch(domain:docs.anthropic.com)",
-      "Bash(touch .ralph/stop)"
+      "Bash(touch .claude-sandbox/ralph/stop)"
     ],
     "deny": [
       "Bash(rm -rf /)*",

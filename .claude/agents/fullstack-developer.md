@@ -91,7 +91,7 @@ Rules:
 - List ONLY files you actually modified (not files you only read)
 - Keep descriptions concise — one sentence per file
 - Include test files
-- Do NOT include agent/backlog.yaml (the orchestrator manages that)
+- Do NOT include .claude-sandbox/agent/backlog.yaml (the orchestrator manages that)
 
 ### Complexity assessment (REQUIRED)
 
@@ -142,7 +142,7 @@ DO file:
 - Changes to agent workflow or orchestrator behavior
 - Anything requiring user approval, design decisions, or cross-story coordination
 
-Each idea must include a suggested priority (`low`, `medium`, `high`, or `very-low`) and a category to help the orchestrator route it to the correct file in `agent/ideas/`.
+Each idea must include a suggested priority (`low`, `medium`, `high`, or `very-low`) and a category to help the orchestrator route it to the correct file in `.claude-sandbox/agent/ideas/`.
 
 Format:
 
@@ -159,4 +159,4 @@ Format:
 - **<title>** (priority: <low|medium|high|very-low>): <1-2 sentence description>
 ```
 
-Use "None" for any empty category. The orchestrator routes ideas to the appropriate file in `agent/ideas/` with `status: needs_approval` and your suggested priority.
+Use "None" for any empty category. The orchestrator routes ideas to the appropriate file in `.claude-sandbox/agent/ideas/` with `status: needs_approval` and your suggested priority.

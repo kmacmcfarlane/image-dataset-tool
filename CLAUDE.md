@@ -40,7 +40,7 @@ Never claim completion unless acceptance criteria are met and tests pass.
 - Changelog: /CHANGELOG.md
 - Subagent definitions: /.claude/agents/
 - Claude Code policy: /.claude/settings.json
-- Ralph runtime: /.ralph/ (managed by ralph — see injected prompt for layout)
+- Ralph runtime: /.claude-sandbox/ralph/ (managed by ralph — see injected prompt for layout)
 
 Compose modes via root Makefile:
 - `make up`      : operational mode
@@ -80,7 +80,7 @@ Root Makefile targets (work in both sandbox and host — preferred for agent use
 - `make test-e2e-live` / `make test-e2e-live-run SPEC=<file>` / `make test-e2e-live-down` (hot-reload E2E development stack)
 - `make logs-snapshot` (atomically start dev stack, capture log lines, tear down)
 
-Backend direct (Go is installed locally in the sandbox via Dockerfile.claude-sandbox):
+Backend direct (Go is installed locally in the sandbox via .claude-sandbox/Dockerfile):
 - `cd backend && make gen`   (Goa codegen; must run before mocks when required)
 - `cd backend && make build`
 - `cd backend && make lint`

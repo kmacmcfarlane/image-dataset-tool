@@ -31,7 +31,7 @@ All notable changes to this project will be documented in this file.
 - HTTP middleware logs: `method`, `path`, `status`, `duration_ms`, `request_id`; debug-only: `remote_addr`, `user_agent`, `query`, `bytes_written`
 - Secrets never appear in logs (cookie values, API key values logged as key names only)
 - Integration tests in `internal/slogutil` and `cmd/server` verify JSON structure, level filtering, and secret safety
-- Updated `agent/DEVELOPMENT_PRACTICES.md` section 3.6 to document slog usage
+- Updated `.claude-sandbox/agent/DEVELOPMENT_PRACTICES.md` section 3.6 to document slog usage
 
 ### S-031: kohya-ss dataset writer
 - `KohyaWriter` in `internal/export/kohya` implements `DatasetWriter` for kohya-ss format: `<sample-id>.jpg` + optional `<sample-id>.txt` pairs
@@ -190,4 +190,4 @@ All notable changes to this project will be documented in this file.
 - Full-stack foundation: Go backend (Goa v3 design-first API, logrus logging), Vue 3 frontend (Vite, TypeScript, Naive UI, Pinia)
 - Health endpoint at GET /health as the first Goa-generated service
 - Docker Compose orchestration: `make up` (production) and `make up-dev` (air hot reload + Vite HMR)
-- Dev tooling: Dockerfile.claude-sandbox with Go 1.25, gopls, ginkgo, goa CLI, ESLint, typescript-language-server
+- Dev tooling: .claude-sandbox/Dockerfile with Go 1.25, gopls, ginkgo, goa CLI, ESLint, typescript-language-server

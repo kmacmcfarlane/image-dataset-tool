@@ -246,7 +246,7 @@ worker receives a non-zero exit code and NAKs with backoff.
 ```
 
 **Container changes required:**
-- Add `python3` and `pip install instaloader` to `Dockerfile.claude-sandbox` or backend Dockerfile
+- Add `python3` and `pip install instaloader` to `.claude-sandbox/Dockerfile` or backend Dockerfile
 - Session files stored in `$DATA_DIR/sessions/` (encrypted path reference in SQLite)
 
 **IGClient interface sketch (for IG-002):**

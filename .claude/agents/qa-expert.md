@@ -114,7 +114,7 @@ For each story, check whether existing E2E tests already cover the acceptance cr
 - Model selection guidance: use sonnet for simple additions (one or two new `test()` blocks following an existing pattern) and opus for complex authoring (new page-object helpers, multi-step flows, or significant fixture changes). The frontmatter model is `opus` because complex authoring is the default expectation; the orchestrator may override to `sonnet` for straightforward stories at dispatch time.
 
 Coverage gap ideas (for unrelated improvements):
-If you notice E2E coverage gaps or testing improvement opportunities that are NOT related to the story under test, do NOT write those tests during this cycle. Instead, file them as ideas in the `## Process Improvements` section of your verdict so the orchestrator can route them to `agent/ideas/`. This keeps your verdict scoped to the story and defers unrelated work for prioritisation.
+If you notice E2E coverage gaps or testing improvement opportunities that are NOT related to the story under test, do NOT write those tests during this cycle. Instead, file them as ideas in the `## Process Improvements` section of your verdict so the orchestrator can route them to `.claude-sandbox/agent/ideas/`. This keeps your verdict scoped to the story and defers unrelated work for prioritisation.
 
 ## Application smoke test (REQUIRED — E2E is the standard)
 
@@ -196,7 +196,7 @@ When returning your verdict, use this structure. The orchestrator parses it to d
 
 (Repeat for each bug found, or "None" if clean)
 
-### Improvement ideas (for agent/ideas/):
+### Improvement ideas (for .claude-sandbox/agent/ideas/):
 - **Title**: <brief title>
   **Priority**: <low|medium|high|very-low>
   **Description**: <1-2 sentences>
@@ -232,4 +232,4 @@ DO file:
 (Use "None" for empty categories)
 ```
 
-The orchestrator uses the "Result" field for the story status transition, the "E2E Test Results" section (including "New E2E bug tickets") for tracking E2E health over time and filing E2E-related backlog entries, the "Runtime Error Sweep" section for filing secondary tickets from runtime logs, the "What I did NOT check" section for audit transparency, and the "Process Improvements" section for updating agent/ideas/. Do not conflate story-specific issues with sweep findings, E2E bug tickets, or process improvements — they are independent.
+The orchestrator uses the "Result" field for the story status transition, the "E2E Test Results" section (including "New E2E bug tickets") for tracking E2E health over time and filing E2E-related backlog entries, the "Runtime Error Sweep" section for filing secondary tickets from runtime logs, the "What I did NOT check" section for audit transparency, and the "Process Improvements" section for updating .claude-sandbox/agent/ideas/. Do not conflate story-specific issues with sweep findings, E2E bug tickets, or process improvements — they are independent.

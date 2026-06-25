@@ -6,7 +6,6 @@
 !.claude/settings.json
 !.claude/agents/
 !.claude/skills/
-.ralph/
 .ralph.stop
 
 # OS
@@ -41,7 +40,7 @@ data/
 .env
 .env.*
 !.env.example
-!.env.claude-sandbox.example
+!.claude-sandbox/env.example
 
 # Logs
 *.log
@@ -54,7 +53,6 @@ logs/
 config.yaml
 
 # Claude sandbox local mounts (gitignored; use .claude-sandbox.example.yaml as template)
-.claude-sandbox.yaml
 
 # Worktrees (ephemeral local state for parallel agent execution)
 .worktrees/
@@ -78,3 +76,7 @@ docs/spike-poc/*/output/
 
 # Temp files from container
 ./tmp/
+.claude-sandbox/env
+.claude-sandbox/temp/
+.claude-sandbox/ralph/
+!.claude-sandbox/config.yaml
