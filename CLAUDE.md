@@ -101,24 +101,24 @@ Frontend (MUST run from /frontend, not the project root):
 - `cd frontend && npm run test:watch`  (Vitest)
 
 Backlog CLI (preferred over direct YAML editing):
-- `python3 scripts/backlog/backlog.py next-work [--format json] [--fields ...]`
-- `python3 scripts/backlog/backlog.py next-work --claim <worker-id> --format json` (atomic claim)
-- `python3 scripts/backlog/backlog.py query --status todo --fields id,title,priority`
-- `python3 scripts/backlog/backlog.py get <id>`
-- `python3 scripts/backlog/backlog.py set <id> status <value>`
-- `python3 scripts/backlog/backlog.py next-id <S|B|R|W|M>`
-- `cat story.yaml | python3 scripts/backlog/backlog.py add`
-- `python3 scripts/backlog/backlog.py validate [--strict]`
+- `python3 .claude-sandbox/scripts/backlog/backlog.py next-work [--format json] [--fields ...]`
+- `python3 .claude-sandbox/scripts/backlog/backlog.py next-work --claim <worker-id> --format json` (atomic claim)
+- `python3 .claude-sandbox/scripts/backlog/backlog.py query --status todo --fields id,title,priority`
+- `python3 .claude-sandbox/scripts/backlog/backlog.py get <id>`
+- `python3 .claude-sandbox/scripts/backlog/backlog.py set <id> status <value>`
+- `python3 .claude-sandbox/scripts/backlog/backlog.py next-id <S|B|R|W|M>`
+- `cat story.yaml | python3 .claude-sandbox/scripts/backlog/backlog.py add`
+- `python3 .claude-sandbox/scripts/backlog/backlog.py validate [--strict]`
 - Use `--repo-root <path>` or `BACKLOG_REPO_ROOT` env var when running from a worktree
 - See AGENT_FLOW.md section 0 for the full command reference.
 
 Worktree CLI (parallel agent execution):
-- `python3 scripts/worktree/worktree.py create <story-id>`
-- `python3 scripts/worktree/worktree.py remove <story-id> [--force] [--delete-branch]`
-- `python3 scripts/worktree/worktree.py list`
-- `python3 scripts/worktree/worktree.py detect-stale`
-- `python3 scripts/worktree/worktree.py recover`
-- `python3 scripts/worktree/merge_helper.py [--repo-dir <path>] [--format json|text]` (merge conflict resolution)
+- `python3 .claude-sandbox/scripts/worktree/worktree.py create <story-id>`
+- `python3 .claude-sandbox/scripts/worktree/worktree.py remove <story-id> [--force] [--delete-branch]`
+- `python3 .claude-sandbox/scripts/worktree/worktree.py list`
+- `python3 .claude-sandbox/scripts/worktree/worktree.py detect-stale`
+- `python3 .claude-sandbox/scripts/worktree/worktree.py recover`
+- `python3 .claude-sandbox/scripts/worktree/merge_helper.py [--repo-dir <path>] [--format json|text]` (merge conflict resolution)
 - See AGENT_FLOW.md section 4.1.1-4.1.3 for worktree workflow, Docker isolation, and merge conflicts.
 
 Docker compose isolation (worktrees):
@@ -130,7 +130,7 @@ Docker compose isolation (worktrees):
 ### Agent workflow (preferred sequence)
 Agents should use one-shot commands, not watch mode. Watch mode is a long-running process designed for human developers — agents need discrete pass/fail results per invocation.
 
-- **Backlog operations**: Always use `python3 scripts/backlog/backlog.py` — never edit backlog.yaml directly
+- **Backlog operations**: Always use `python3 .claude-sandbox/scripts/backlog/backlog.py` — never edit backlog.yaml directly
 - **After Goa DSL edits**: run codegen (`make gen` via compose or direct), then `make test-backend` to verify
 - **Backend verification**: `make test-backend` (one-shot, returns exit code)
 - **Frontend verification**: `make test-frontend` or `cd frontend && npx vitest run`
@@ -179,6 +179,6 @@ Stories progress through a multi-agent pipeline: fullstack-developer → code-re
 ## 10) When blocked
 If acceptance criteria cannot be met:
 - Do not mark the story done.
-- `python3 scripts/backlog/backlog.py set <id> status blocked`
-- `echo "<concrete reason>" | python3 scripts/backlog/backlog.py set-text <id> blocked_reason`
+- `python3 .claude-sandbox/scripts/backlog/backlog.py set <id> status blocked`
+- `echo "<concrete reason>" | python3 .claude-sandbox/scripts/backlog/backlog.py set-text <id> blocked_reason`
 - Stop work on that story until the backlog/PRD resolves the blocker.
