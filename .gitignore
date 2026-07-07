@@ -80,3 +80,4 @@ docs/spike-poc/*/output/
 .claude-sandbox/temp/
 .claude-sandbox/ralph/
 !.claude-sandbox/config.yaml
+!.claude-sandbox/Dockerfile
