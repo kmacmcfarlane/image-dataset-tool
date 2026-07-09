@@ -26,7 +26,7 @@ Test automation checklist:
 
 ## LSP and gopls tools
 
-When working with Go backend tests, read `/agent/LSP_TOOLS.md` first
+When working with Go backend tests, read `.claude-sandbox/agent/LSP_TOOLS.md` first
 to understand available tools and mandatory usage rules. Use
 `go_search` to locate symbols, `go_file_context` after reading any Go
 file, `go_symbol_references` to find all usages of interfaces or

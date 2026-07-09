@@ -27,7 +27,7 @@ Steps:
 ## LSP and gopls tools
 
 When reviewing Go backend code or investigating test failures, read
-`/agent/LSP_TOOLS.md` first to understand available tools and mandatory
+`.claude-sandbox/agent/LSP_TOOLS.md` first to understand available tools and mandatory
 usage rules. Use `go_search` to locate symbols, `go_file_context`
 after reading any Go file, `go_symbol_references` to verify test
 coverage of modified symbols, and `go_diagnostics` to check for

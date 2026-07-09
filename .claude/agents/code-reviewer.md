@@ -23,7 +23,7 @@ Steps:
 
 ## LSP and gopls tools
 
-Read `/agent/LSP_TOOLS.md` first to understand available tools and
+Read `.claude-sandbox/agent/LSP_TOOLS.md` first to understand available tools and
 mandatory usage rules. Use `LSP(findReferences)` to verify the
 developer didn't miss call sites when modifying interfaces or
 signatures. Use `go_diagnostics` (via gopls MCP) as a fast pre-check

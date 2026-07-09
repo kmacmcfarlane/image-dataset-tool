@@ -29,7 +29,7 @@ ralph-auto-resume-once:
 	claude-sandbox --docker-socket --ralph --dangerously-skip-permissions --limit 1 --resume ${ARGS}
 
 # Debug: run the normal story pipeline with full decision logging (autonomous, single pass).
-# After the run, review .ralph-debug/ for the full decision trail of every agent.
+# After the run, review .claude-sandbox/ralph/debug/ for the full decision trail of every agent.
 ralph-auto-debug:
 	claude-sandbox --docker-socket --ralph --dangerously-skip-permissions --log-context --limit 1 ${ARGS}
 

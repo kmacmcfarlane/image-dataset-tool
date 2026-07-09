@@ -26,7 +26,7 @@ Debugging checklist:
 
 ## LSP and gopls tools
 
-When debugging Go backend code, read `/agent/LSP_TOOLS.md` first to
+When debugging Go backend code, read `.claude-sandbox/agent/LSP_TOOLS.md` first to
 understand available tools and mandatory usage rules. Use `go_search`
 to locate symbols, `go_file_context` after reading any Go file,
 `go_symbol_references` to trace callers before diagnosing, and

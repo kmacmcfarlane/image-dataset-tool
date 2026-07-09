@@ -5,15 +5,15 @@ Detailed requirements and process live under /agent.
 
 ## 0) Where the truth lives
 Always read these at the start of each cycle:
-- /agent/PRD.md
-- /agent/backlog.yaml
-- /agent/AGENT_FLOW.md
-- /agent/TEST_PRACTICES.md
-- /agent/DEVELOPMENT_PRACTICES.md
-- /agent/LSP_TOOLS.md
+- .claude-sandbox/agent/PRD.md
+- .claude-sandbox/agent/backlog.yaml
+- .claude-sandbox/agent/AGENT_FLOW.md
+- .claude-sandbox/agent/TEST_PRACTICES.md
+- .claude-sandbox/agent/DEVELOPMENT_PRACTICES.md
+- .claude-sandbox/agent/LSP_TOOLS.md
 - /CHANGELOG.md
 
-The loop prompt is /agent/PROMPT.md. The Ralph runner is `ralph` (via claude-sandbox on PATH) when running in a ralph loop. You may be running interactively instead though.
+The loop prompt is .claude-sandbox/agent/PROMPT.md. The Ralph runner is `ralph` (via claude-sandbox on PATH) when running in a ralph loop. You may be running interactively instead though.
 
 ## 1) Prime directive
 Operate only on repository state (files + git). Treat each cycle as stateless.
@@ -60,7 +60,7 @@ Frontend never talks to providers. Frontend talks only to backend API.
 ## 5) Data persistence
 - **SQLite** via `modernc.org/sqlite` (pure Go, no CGO). WAL mode, 5s busy timeout, foreign keys ON.
 - **YAML configuration** at `config.yaml` (override via `CONFIG_PATH` env var).
-- Schema details in /docs/database.md. Full config schema in /agent/PRD.md.
+- Schema details in /docs/database.md. Full config schema in .claude-sandbox/agent/PRD.md.
 
 ## 6) Tooling ecosystem
 This project is part of the [kmac-claude-kit](https://github.com/kmacmcfarlane/kmac-claude-kit) ecosystem:
@@ -156,14 +156,14 @@ whether grep/Read could fill gaps that gopls doesn't cover — comments, string
 literals, non-Go files (SQL, config, frontend API calls), or cross-file patterns.
 Use both tool sets for a complete picture.
 
-See /agent/LSP_TOOLS.md for the full tool reference including the built-in LSP tool.
+See .claude-sandbox/agent/LSP_TOOLS.md for the full tool reference including the built-in LSP tool.
 
 ## 8) Change discipline
-- One story at a time (from /agent/backlog.yaml) per /agent/AGENT_FLOW.md.
+- One story at a time (from .claude-sandbox/agent/backlog.yaml) per .claude-sandbox/agent/AGENT_FLOW.md.
 - Minimal diffs; no drive-by refactors or formatting churn.
 - Do not edit generated code under /backend/internal/api/gen.
 - Update /CHANGELOG.md per completed story.
-- Commit policy is defined in /agent/AGENT_FLOW.md (follow it exactly).
+- Commit policy is defined in .claude-sandbox/agent/AGENT_FLOW.md (follow it exactly).
 
 ## 9) Subagent workflow
 Stories progress through a multi-agent pipeline: fullstack-developer → code-reviewer → qa-expert.
@@ -174,7 +174,7 @@ Stories progress through a multi-agent pipeline: fullstack-developer → code-re
 - `uat` = user's court (reviewing). `uat_feedback` = agent's court (has feedback to act on).
 - Agents never set `status: done` directly. `uat` stories are not eligible work — only `uat_feedback` stories are.
 - Subagent definitions live in /.claude/agents/ and are checked into the repository
-- See /agent/AGENT_FLOW.md for the full lifecycle and dispatch rules
+- See .claude-sandbox/agent/AGENT_FLOW.md for the full lifecycle and dispatch rules
 
 ## 10) When blocked
 If acceptance criteria cannot be met:

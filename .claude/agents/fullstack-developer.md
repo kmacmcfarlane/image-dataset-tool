@@ -24,7 +24,7 @@ When invoked, you will receive:
 
 ## LSP and gopls tools
 
-Read `/agent/LSP_TOOLS.md` first to understand available tools and
+Read `.claude-sandbox/agent/LSP_TOOLS.md` first to understand available tools and
 mandatory usage rules. Before modifying any Go interface or exported
 function, use `LSP(findReferences)` or `go_symbol_references` (via
 gopls MCP) to enumerate all affected sites. After changes, run
