@@ -182,3 +182,11 @@ If acceptance criteria cannot be met:
 - `python3 .claude-sandbox/scripts/backlog/backlog.py set <id> status blocked`
 - `echo "<concrete reason>" | python3 .claude-sandbox/scripts/backlog/backlog.py set-text <id> blocked_reason`
 - Stop work on that story until the backlog/PRD resolves the blocker.
+
+## Librarian
+Scope: whole repo (except .claude-sandbox/ and .claude/)
+Checks:
+- make test-backend
+- make test-frontend
+- cd backend && make lint
+Push: main
