@@ -185,6 +185,6 @@ If acceptance criteria cannot be met:
 Scope: whole repo (except .claude-sandbox/ and .claude/)
 Checks:
 - cd backend && make test
-- cd frontend && npx vitest run
+- cd frontend && npm ci && npx vitest run
 - cd backend && make lint
 Push: main
