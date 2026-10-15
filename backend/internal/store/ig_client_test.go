@@ -15,7 +15,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/model"
-	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/service/ig"
 	"github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
 )
 
@@ -189,7 +188,7 @@ var _ = Describe("HTTPIGClient", func() {
 			session := &model.IGSession{AccountID: "acc-1", Handle: "test"}
 			client := store.NewHTTPIGClient(session, logs, discord, store.WithClock(clock))
 			_, err := client.SessionValid()
-			Expect(err).To(MatchError(ig.ErrNoSession))
+			Expect(err).To(MatchError(store.ErrIGNoSession))
 		})
 	})
 
@@ -203,7 +202,7 @@ var _ = Describe("HTTPIGClient", func() {
 				store.WithClock(clock), store.WithHTTPClient(ts.Client()), store.WithBaseURL(ts.URL))
 			_, err := client.FetchPosts(ctx, "53611243", model.IGFetchOpts{Count: 1})
 
-			Expect(err).To(MatchError(ig.ErrSessionExpired))
+			Expect(err).To(MatchError(store.ErrIGSessionExpired))
 			Expect(hits).To(Equal(0))
 			Expect(discord.alerts).To(HaveLen(1))
 			Expect(discord.alerts[0]).To(ContainSubstring("session expired"))
@@ -296,7 +295,7 @@ var _ = Describe("HTTPIGClient", func() {
 			defer ts.Close()
 
 			_, err := newClient(ts).FetchProfile(ctx, "53611243")
-			Expect(err).To(MatchError(ig.ErrDenied))
+			Expect(err).To(MatchError(store.ErrIGDenied))
 		})
 	})
 
@@ -396,7 +395,7 @@ var _ = Describe("HTTPIGClient", func() {
 				defer ts.Close()
 
 				_, err := newClient(ts).FetchPosts(ctx, "53611243", model.IGFetchOpts{Count: 1})
-				Expect(err).To(MatchError(ig.ErrDenied))
+				Expect(err).To(MatchError(store.ErrIGDenied))
 
 				Expect(logs.logs).To(HaveLen(1))
 				Expect(logs.logs[0].IsDenied).To(BeTrue())
@@ -420,21 +419,64 @@ var _ = Describe("HTTPIGClient", func() {
 			Entry("200 status=fail login_required", http.StatusOK,
 				`{"message":"login_required","status":"fail"}`, "login_required"),
 		)
+
+		DescribeTable("treats a redirect to login/challenge as denial instead of following it",
+			func(location string) {
+				var hits int
+				ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					hits++
+					if r.URL.Path != "/api/v1/feed/user/53611243/" {
+						w.WriteHeader(http.StatusOK) // The login page would answer 200.
+						return
+					}
+					http.Redirect(w, r, location, http.StatusFound)
+				}))
+				defer ts.Close()
+
+				_, err := newClient(ts).FetchPosts(ctx, "53611243", model.IGFetchOpts{Count: 1})
+				Expect(err).To(MatchError(store.ErrIGDenied))
+				Expect(hits).To(Equal(1)) // Redirect not followed.
+
+				Expect(logs.logs).To(HaveLen(1))
+				Expect(logs.logs[0].IsDenied).To(BeTrue())
+				Expect(logs.logs[0].HTTPStatus).To(Equal(http.StatusFound))
+				Expect(logs.logs[0].ErrorDetail).To(ContainSubstring(location))
+				Expect(discord.alerts).To(HaveLen(1))
+				Expect(discord.alerts[0]).To(ContainSubstring("redirect to " + location))
+			},
+			Entry("relative login path", "/accounts/login/?next=/api/v1/feed/user/53611243/"),
+			Entry("absolute login URL", "https://www.instagram.com/accounts/login/"),
+			Entry("challenge", "/challenge/12345/abcde/"),
+		)
 	})
 
 	Describe("Other API errors", func() {
 		It("returns an error and logs error_detail for a 200 with status=fail", func() {
-			body := `{"message":"Please wait a few minutes before you try again.","status":"fail"}`
+			body := `{"message":"something unexpected","status":"fail"}`
 			ts := httptest.NewServer(respondWith(http.StatusOK, []byte(body)))
 			defer ts.Close()
 
 			_, err := newClient(ts).FetchPosts(ctx, "53611243", model.IGFetchOpts{Count: 1})
 			Expect(err).To(MatchError(ContainSubstring(`status "fail"`)))
-			Expect(errors.Is(err, ig.ErrDenied)).To(BeFalse())
+			Expect(errors.Is(err, store.ErrIGDenied)).To(BeFalse())
 
 			Expect(logs.logs).To(HaveLen(1))
 			Expect(logs.logs[0].HTTPStatus).To(Equal(200))
 			Expect(logs.logs[0].ErrorDetail).To(Equal(body))
+			Expect(discord.alerts).To(BeEmpty())
+		})
+
+		It("returns an error for a redirect that is not to login/challenge", func() {
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/somewhere/else/", http.StatusFound)
+			}))
+			defer ts.Close()
+
+			_, err := newClient(ts).FetchPosts(ctx, "53611243", model.IGFetchOpts{Count: 1})
+			Expect(err).To(MatchError(ContainSubstring("unexpected redirect")))
+			Expect(logs.logs).To(HaveLen(1))
+			Expect(logs.logs[0].HTTPStatus).To(Equal(http.StatusFound))
+			Expect(logs.logs[0].ErrorDetail).To(Equal("redirect to /somewhere/else/"))
 			Expect(discord.alerts).To(BeEmpty())
 		})
 
@@ -491,7 +533,7 @@ var _ = Describe("HTTPIGClient", func() {
 				MaxRetries: 3, Initial: 10 * time.Second, Max: 25 * time.Second,
 			}))
 			_, err := client.FetchPosts(ctx, "53611243", model.IGFetchOpts{Count: 1})
-			Expect(err).To(MatchError(ig.ErrThrottled))
+			Expect(err).To(MatchError(store.ErrIGThrottled))
 
 			Expect(hits).To(Equal(4))
 			Expect(sleeper.delays).To(Equal([]time.Duration{10 * time.Second, 20 * time.Second, 25 * time.Second}))
@@ -507,6 +549,30 @@ var _ = Describe("HTTPIGClient", func() {
 			Expect(discord.warnings[0]).To(ContainSubstring("429"))
 			Expect(discord.alerts).To(BeEmpty())
 		})
+
+		DescribeTable("treats rate-limit messages like a 429",
+			func(status int, body string) {
+				ts := httptest.NewServer(respondWith(status, []byte(body)))
+				defer ts.Close()
+
+				_, err := newClient(ts, store.WithBackoff(store.IGBackoff{
+					MaxRetries: 1, Initial: time.Second, Max: time.Second,
+				})).FetchPosts(ctx, "53611243", model.IGFetchOpts{Count: 1})
+				Expect(err).To(MatchError(store.ErrIGThrottled))
+
+				Expect(sleeper.delays).To(Equal([]time.Duration{time.Second}))
+				Expect(logs.logs).To(HaveLen(2))
+				Expect(logs.logs[0].IsThrottled).To(BeTrue())
+				Expect(logs.logs[0].IsDenied).To(BeFalse())
+				Expect(logs.logs[0].HTTPStatus).To(Equal(status))
+				Expect(discord.warnings).To(HaveLen(1))
+				Expect(discord.alerts).To(BeEmpty())
+			},
+			Entry("400 feedback_required", http.StatusBadRequest,
+				`{"message":"feedback_required","spam":true,"status":"fail"}`),
+			Entry("400 please wait", http.StatusBadRequest,
+				`{"message":"Please wait a few minutes before you try again.","status":"fail"}`),
+		)
 
 		It("succeeds when a retry after backoff returns 200", func() {
 			var hits int
@@ -559,7 +625,7 @@ var _ = Describe("HTTPIGClient", func() {
 			client := newClient(ts, store.WithSleeper(advancing))
 
 			_, err := client.FetchPosts(ctx, "53611243", model.IGFetchOpts{Count: 1})
-			Expect(err).To(MatchError(ig.ErrSessionExpired))
+			Expect(err).To(MatchError(store.ErrIGSessionExpired))
 			Expect(hits).To(Equal(1))
 			Expect(discord.alerts).To(ContainElement(ContainSubstring("session expired")))
 		})

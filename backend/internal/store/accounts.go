@@ -139,6 +139,34 @@ func (s *AccountStore) UpdateCookies(id string, cookies []byte) error {
 	return nil
 }
 
+// UpdateCookiesWithSessionExpiry encrypts and stores cookies and sets
+// session_expires_at in one UPDATE, so a cookie import never leaves the
+// cookies saved with a stale expiry.
+func (s *AccountStore) UpdateCookiesWithSessionExpiry(id string, cookies []byte, expiresAt time.Time) error {
+	encrypted, err := crypto.Encrypt(s.encKey, cookies)
+	if err != nil {
+		return fmt.Errorf("encrypt cookies: %w", err)
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	result, err := s.db.Exec(
+		`UPDATE accounts SET cookies_blob = ?, session_expires_at = ?, updated_at = ? WHERE id = ?`,
+		encrypted, expiresAt.UTC().Format(time.RFC3339), now, id,
+	)
+	if err != nil {
+		return fmt.Errorf("update cookies and session_expires_at: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check rows affected: %w", err)
+	}
+	if affected == 0 {
+		return fmt.Errorf("account %q: %w", id, ErrNotFound)
+	}
+	return nil
+}
+
 // UpdateSessionExpiry sets the session_expires_at timestamp for an account.
 func (s *AccountStore) UpdateSessionExpiry(id string, expiresAt time.Time) error {
 	now := time.Now().UTC().Format(time.RFC3339)

@@ -39,6 +39,26 @@ var _ = Describe("AccountStore session expiry", func() {
 		os.RemoveAll(tmpDir)
 	})
 
+	Describe("UpdateCookiesWithSessionExpiry", func() {
+		It("stores cookies and expiry together", func() {
+			want := time.Date(2026, 5, 27, 12, 0, 0, 0, time.UTC)
+			Expect(as.UpdateCookiesWithSessionExpiry("acc-1", []byte("sessionid=abc"), want)).To(Succeed())
+
+			cookies, err := as.GetCookies("acc-1")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(string(cookies)).To(Equal("sessionid=abc"))
+
+			got, err := as.GetSessionExpiry("acc-1")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got).To(Equal(want))
+		})
+
+		It("returns ErrNotFound for a missing account", func() {
+			err := as.UpdateCookiesWithSessionExpiry("nonexistent", []byte("x"), time.Now())
+			Expect(err).To(MatchError(store.ErrNotFound))
+		})
+	})
+
 	Describe("UpdateSessionExpiry", func() {
 		It("stores the expiry so GetSessionExpiry returns it in UTC", func() {
 			want := time.Date(2026, 5, 27, 12, 30, 0, 0, time.FixedZone("X", 2*3600))

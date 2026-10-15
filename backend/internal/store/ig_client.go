@@ -35,6 +35,17 @@ var igDenialMessages = map[string]bool{
 	"login_required":      true,
 }
 
+// igThrottleMessages are the IG API "message" values that signal rate limiting
+// without a 429 status; they are handled like a 429 (spike §9.4.2).
+var igThrottleMessages = map[string]bool{
+	"feedback_required": true,
+	"Please wait a few minutes before you try again.": true,
+}
+
+// igDenialRedirectPaths are redirect targets that mean the session was
+// rejected (IG sends the browser to log in or pass a challenge).
+var igDenialRedirectPaths = []string{"/accounts/login", "/challenge"}
+
 // IGBackoff configures how HTTPIGClient retries a request that returned 429.
 // Delays grow exponentially from Initial, capped at Max.
 type IGBackoff struct {
@@ -62,6 +73,7 @@ func (b IGBackoff) delay(attempt int) time.Duration {
 // with browser session cookies.
 type HTTPIGClient struct {
 	httpClient *http.Client
+	apiClient  *http.Client // httpClient without redirect following, for IG API calls.
 	session    *model.IGSession
 	logStore   IGRequestLogWriter
 	discord    DiscordNotifier
@@ -133,6 +145,11 @@ func NewHTTPIGClient(
 	for _, o := range opts {
 		o(c)
 	}
+	// IG API calls must see redirects (e.g. to /accounts/login/) rather than
+	// follow them and report the login page as a clean 200.
+	api := *c.httpClient
+	api.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	c.apiClient = &api
 	return c
 }
 
@@ -338,7 +355,8 @@ func (c *HTTPIGClient) checkSession() error {
 // doRequest executes one authenticated request to the IG API and writes one
 // ig_request_log row for it, whatever the outcome. 429 returns ErrIGThrottled;
 // 401/403 or a checkpoint/challenge/login message returns ErrIGDenied and
-// sends a Discord alert.
+// sends a Discord alert. Rate-limit messages (feedback_required, "Please wait
+// a few minutes") count as 429; redirects to login/challenge count as denial.
 func (c *HTTPIGClient) doRequest(ctx context.Context, endpoint string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+endpoint, nil)
 	if err != nil {
@@ -354,7 +372,7 @@ func (c *HTTPIGClient) doRequest(ctx context.Context, endpoint string) ([]byte, 
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
 
 	start := c.clock.Now()
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.apiClient.Do(req)
 	elapsed := c.clock.Now().Sub(start).Milliseconds()
 
 	if err != nil {
@@ -372,20 +390,26 @@ func (c *HTTPIGClient) doRequest(ctx context.Context, endpoint string) ([]byte, 
 	var env igEnvelope
 	_ = json.Unmarshal(body, &env) // Best effort: non-JSON bodies leave env empty.
 	statusFailed := env.Status != "" && env.Status != "ok"
+	isRedirect := resp.StatusCode >= 300 && resp.StatusCode < 400
+	location := resp.Header.Get("Location")
 
 	errDetail := ""
-	if resp.StatusCode >= 400 || statusFailed {
+	switch {
+	case isRedirect:
+		errDetail = truncate("redirect to "+location, igMaxErrorDetail)
+	case resp.StatusCode >= 400 || statusFailed:
 		errDetail = truncate(string(body), igMaxErrorDetail)
 	}
 
 	switch {
-	case resp.StatusCode == http.StatusTooManyRequests:
+	case resp.StatusCode == http.StatusTooManyRequests || igThrottleMessages[env.Message]:
 		c.logRequest(endpoint, resp.StatusCode, elapsed, true, false, errDetail)
 		return nil, ErrIGThrottled
 
 	case resp.StatusCode == http.StatusUnauthorized ||
 		resp.StatusCode == http.StatusForbidden ||
-		igDenialMessages[env.Message]:
+		igDenialMessages[env.Message] ||
+		(isRedirect && isDenialRedirect(location)):
 		c.logRequest(endpoint, resp.StatusCode, elapsed, false, true, errDetail)
 		c.logger.Error("ig request denied",
 			"endpoint", endpoint,
@@ -397,8 +421,15 @@ func (c *HTTPIGClient) doRequest(ctx context.Context, endpoint string) ([]byte, 
 		if env.Message != "" {
 			reason += " " + env.Message
 		}
+		if isRedirect {
+			reason += " redirect to " + location
+		}
 		c.discord.Alert(fmt.Sprintf("IG auth failure (%s) on %s for @%s. Job halted.", reason, endpoint, c.session.Handle))
 		return nil, fmt.Errorf("%w: %s", ErrIGDenied, reason)
+
+	case isRedirect:
+		c.logRequest(endpoint, resp.StatusCode, elapsed, false, false, errDetail)
+		return nil, fmt.Errorf("ig API error: unexpected redirect HTTP %d to %q", resp.StatusCode, location)
 
 	case resp.StatusCode >= 400:
 		c.logRequest(endpoint, resp.StatusCode, elapsed, false, false, errDetail)
@@ -411,6 +442,21 @@ func (c *HTTPIGClient) doRequest(ctx context.Context, endpoint string) ([]byte, 
 
 	c.logRequest(endpoint, resp.StatusCode, elapsed, false, false, "")
 	return body, nil
+}
+
+// isDenialRedirect reports whether a redirect Location points at IG's login
+// or challenge pages.
+func isDenialRedirect(location string) bool {
+	u, err := url.Parse(location)
+	if err != nil {
+		return false
+	}
+	for _, p := range igDenialRedirectPaths {
+		if strings.HasPrefix(u.Path, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // logRequest writes a request log entry to the store.

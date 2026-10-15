@@ -14,11 +14,11 @@ var (
 	// ErrIGSessionExpired indicates the session TTL has elapsed.
 	ErrIGSessionExpired = errors.New("ig session expired")
 
-	// ErrIGThrottled indicates a 429 response from Instagram that persisted
+	// ErrIGThrottled indicates a 429 (or rate-limit message) from Instagram that persisted
 	// after the client's backoff retries were exhausted.
 	ErrIGThrottled = errors.New("ig request throttled (429)")
 
-	// ErrIGDenied indicates a 401/403/checkpoint response from Instagram.
+	// ErrIGDenied indicates a 401/403/checkpoint/login-redirect response from Instagram.
 	ErrIGDenied = errors.New("ig request denied (auth failure)")
 
 	// ErrIGNoSession indicates no cookies are configured for the account.

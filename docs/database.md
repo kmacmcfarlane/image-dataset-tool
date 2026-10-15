@@ -206,10 +206,10 @@ here for throttle/denial analysis and IP rotation tracking.
 | account_id       | TEXT FK    | -> accounts.id                          |
 | endpoint         | TEXT       | Path + query, e.g. `/api/v1/feed/user/{id}/?count=12` |
 | http_status      | INTEGER    | HTTP response code; 0 if no response (transport error) |
-| is_throttled     | INTEGER    | 1 if 429 rate-limit response            |
-| is_denied        | INTEGER    | 1 if 401/403, or a `checkpoint_required` / `challenge_required` / `login_required` message |
+| is_throttled     | INTEGER    | 1 if 429, or a `feedback_required` / "Please wait a few minutes" rate-limit message |
+| is_denied        | INTEGER    | 1 if 401/403, a `checkpoint_required` / `challenge_required` / `login_required` message, or a redirect to `/accounts/login` or `/challenge` |
 | response_time_ms | INTEGER    | Request latency in milliseconds         |
 | public_ip        | TEXT       | External IP used for the request        |
-| error_detail     | TEXT       | Truncated error body or transport error (max 500 bytes) |
+| error_detail     | TEXT       | Truncated error body, redirect target or transport error (max 500 bytes) |
 
 **Indexes**: `account_id`, `timestamp`.

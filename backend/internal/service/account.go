@@ -70,8 +70,7 @@ type AccountRepository interface {
 	Get(id string) (*model.Account, error)
 	GetDetail(id string) (*model.AccountDetail, error)
 	List() ([]*model.Account, error)
-	UpdateCookies(id string, cookies []byte) error
-	UpdateSessionExpiry(id string, expiresAt time.Time) error
+	UpdateCookiesWithSessionExpiry(id string, cookies []byte, expiresAt time.Time) error
 	Delete(id string) error
 	HandleExists(platform, handle string) (bool, error)
 }
@@ -172,13 +171,9 @@ func (s *AccountService) UpdateCookies(id string, cookies string) error {
 			acct.Platform, strings.Join(missing, ", "), ErrBadRequest)
 	}
 
-	if err := s.store.UpdateCookies(id, []byte(cookies)); err != nil {
-		return fmt.Errorf("update cookies: %w", err)
-	}
-
 	expiresAt := time.Now().UTC().Add(IGSessionTTL)
-	if err := s.store.UpdateSessionExpiry(id, expiresAt); err != nil {
-		return fmt.Errorf("update session expiry: %w", err)
+	if err := s.store.UpdateCookiesWithSessionExpiry(id, []byte(cookies), expiresAt); err != nil {
+		return fmt.Errorf("update cookies: %w", err)
 	}
 
 	slog.Info("Account cookies updated", "id", id, "session_expires_at", expiresAt.Format(time.RFC3339))
