@@ -2,25 +2,26 @@
 #
 # Derive a Docker Compose project name for the current context.
 #
-# In a worktree (.worktrees/<story-id>/), the project name is scoped to the
-# story ID to prevent collisions between concurrent compose stacks.
-# In the main checkout, returns the default project name.
+# When STORY_ID is set, the project name is scoped to that story ID to prevent
+# collisions between concurrent compose stacks. STORY_ID must be set explicitly;
+# nothing is inferred from the working directory. Without it, returns the
+# default project name.
 #
 # Usage:
 #   ./scripts/compose-project-name.sh <base-name>
 #
 # Examples:
 #   ./scripts/compose-project-name.sh myproject-dev
-#     -> myproject-dev                         (main checkout)
-#     -> myproject-dev-s-042                   (worktree for S-042)
+#     -> myproject-dev                         (STORY_ID unset)
+#     -> myproject-dev-s-042                   (STORY_ID=S-042)
 #
 #   ./scripts/compose-project-name.sh myproject-test
-#     -> myproject-test                        (main checkout)
-#     -> myproject-test-s-042                  (worktree for S-042)
+#     -> myproject-test                        (STORY_ID unset)
+#     -> myproject-test-s-042                  (STORY_ID=S-042)
 #
 # Environment variables:
 #   COMPOSE_PROJECT_OVERRIDE  — if set, returned as-is (allows manual override)
-#   STORY_ID                  — if set, used as story ID instead of auto-detection
+#   STORY_ID                  — if set, scopes the project name to this story ID
 #
 set -euo pipefail
 
@@ -32,16 +33,8 @@ if [ -n "${COMPOSE_PROJECT_OVERRIDE:-}" ]; then
     exit 0
 fi
 
-# Detect story ID from worktree path or explicit env var
+# Story ID comes only from the explicit env var
 STORY_ID="${STORY_ID:-}"
-
-if [ -z "$STORY_ID" ]; then
-    # Check if we're in a worktree under .worktrees/<story-id>/
-    CURRENT_DIR="$(pwd)"
-    if [[ "$CURRENT_DIR" =~ \.worktrees/([^/]+) ]]; then
-        STORY_ID="${BASH_REMATCH[1]}"
-    fi
-fi
 
 if [ -n "$STORY_ID" ]; then
     # Normalize story ID: lowercase, replace non-alphanumeric with dash

@@ -54,9 +54,6 @@ config.yaml
 
 # Claude sandbox local mounts (gitignored; use .claude-sandbox.example.yaml as template)
 
-# Worktrees (ephemeral local state for parallel agent execution)
-.worktrees/
-
 # E2E test artifacts
 .e2e/
 frontend/playwright-report/

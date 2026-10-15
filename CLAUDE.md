@@ -112,17 +112,15 @@ Backlog CLI (preferred over direct YAML editing):
 - Use `--repo-root <path>` or `BACKLOG_REPO_ROOT` env var when running from a worktree
 - See AGENT_FLOW.md section 0 for the full command reference.
 
-Worktree CLI (parallel agent execution):
-- `python3 .claude-sandbox/scripts/worktree/worktree.py create <story-id>`
-- `python3 .claude-sandbox/scripts/worktree/worktree.py remove <story-id> [--force] [--delete-branch]`
-- `python3 .claude-sandbox/scripts/worktree/worktree.py list`
-- `python3 .claude-sandbox/scripts/worktree/worktree.py detect-stale`
-- `python3 .claude-sandbox/scripts/worktree/worktree.py recover`
-- `python3 .claude-sandbox/scripts/worktree/merge_helper.py [--repo-dir <path>] [--format json|text]` (merge conflict resolution)
-- See AGENT_FLOW.md section 4.1.1-4.1.3 for worktree workflow, Docker isolation, and merge conflicts.
+Worktree and run branch (ralph):
+- Ralph opens the orchestrator in a Claude Code worktree — `.claude/worktrees/<name>` on branch `worktree-<name>` (default name `ralph`) — and reopens the same worktree every iteration. The launcher creates it; nothing in this repo manages worktrees.
+- Every story of a run is committed on that one branch, the **run branch**. Nobody merges into `main`: the run branch is the deliverable — a human reviews it and fast-forwards `main` (`git merge --ff-only worktree-<name>`) or opens a PR.
+- Each story records `base_sha` (the commit it started from) in the backlog; its change set for review and QA is `git diff <base_sha>`, never a diff against `main`.
+- The live `.claude-sandbox/` state (backlog, stop file, ideas, questions) is the main checkout's copy at `$CLAUDE_SANDBOX_PROJECT_DIR` (exported by ralph), never the worktree's. Reach it through Bash (`backlog.py`, `touch`, shell redirection) — Edit/Write to the main checkout is blocked from inside a worktree.
+- See AGENT_FLOW.md section 4.1 (run branch), 4.1.1 (main checkout) and 4.1.3 (`base_sha`).
 
-Docker compose isolation (worktrees):
-- Set `STORY_ID=<id>` before make targets to activate story-scoped compose project names
+Docker compose isolation (concurrent sessions):
+- Set `STORY_ID=<id>` explicitly before make targets to activate story-scoped compose project names — nothing is inferred from the working directory
 - `STORY_ID=S-042 make test-backend` — uses story-scoped project with ephemeral ports
 - `COMPOSE_PROJECT_OVERRIDE=<name>` — manual override (escape hatch)
 - See AGENT_FLOW.md section 4.1.2 for details.
@@ -169,7 +167,7 @@ See .claude-sandbox/agent/LSP_TOOLS.md for the full tool reference including the
 Stories progress through a multi-agent pipeline: fullstack-developer → code-reviewer → qa-expert.
 - Story status values: `todo`, `in_progress`, `review`, `testing`, `uat`, `uat_feedback`, `done`, `blocked`
 - The orchestrator (PROMPT.md) dispatches to the appropriate subagent based on story status
-- After QA approval, stories enter `uat` (not `done`). Code is merged to main at this point.
+- After QA approval, stories enter `uat` (not `done`). Code is committed on the run branch at this point — never merged into `main`; the user fast-forwards `main` from the run branch after review.
 - The user reviews functionality in `uat` and either moves to `done` or sets `uat_feedback` status (with feedback in `review_feedback`) for rework.
 - `uat` = user's court (reviewing). `uat_feedback` = agent's court (has feedback to act on).
 - Agents never set `status: done` directly. `uat` stories are not eligible work — only `uat_feedback` stories are.

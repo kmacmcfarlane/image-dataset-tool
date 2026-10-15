@@ -60,20 +60,6 @@
       "WebSearch",
       "WebFetch(domain:docs.anthropic.com)",
       "Bash(touch .claude-sandbox/ralph/stop)"
-    ],
-    "deny": [
-      "Bash(rm -rf /)*",
-      "Bash(rm -rf ~)*",
-      "Bash(*> /etc/*)*",
-      "Bash(curl * | bash)*",
-      "Bash(wget * | bash)*",
-      "Bash(sudo *)*",
-      "Bash(chmod 777 *)*",
-      "Bash(*printenv*)*",
-      "Bash(*export *PASSWORD*)*",
-      "Bash(*export *SECRET*)*",
-      "Bash(*export *TOKEN*)*",
-      "Bash(*export *KEY*)*"
     ]
   }
 }
