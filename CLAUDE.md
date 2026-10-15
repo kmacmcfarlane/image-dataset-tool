@@ -184,7 +184,7 @@ If acceptance criteria cannot be met:
 ## Librarian
 Scope: whole repo (except .claude-sandbox/ and .claude/)
 Checks:
-- make test-backend
-- make test-frontend
+- cd backend && make test
+- cd frontend && npx vitest run
 - cd backend && make lint
 Push: main
