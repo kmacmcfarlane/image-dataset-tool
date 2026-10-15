@@ -201,16 +201,16 @@ rewritten without it (claude-sandbox's cross-repo metadata migration).
   never force-add a file of it (`git add -f`), and skip any step that would commit it: the
   pre-push hook refuses a push whose history holds a store file (Recovery 1 takes it out). Its
   history up to the move is only in the bundle.
-- Both exist only in the main checkout, /home/rt/work/src/github.com/kmacmcfarlane/image-dataset-tool. A worktree has neither: a brief for a
-  worktree agent names them by absolute path (`WORK_ITEMS_ROOT=/home/rt/work/src/github.com/kmacmcfarlane/image-dataset-tool/.work-items`,
-  `/home/rt/work/src/github.com/kmacmcfarlane/image-dataset-tool/.claude-sandbox/…`).
-- Commit ids cited from before the rewrite are old ids. The new one:
-  `awk -v s=<id> 'index($1,s)==1{print $2}' /home/rt/work/src/github.com/kmacmcfarlane/image-dataset-tool/.claude-sandbox/reports/metadata-migration/commit-map`
+- Both exist only in the main checkout (the clone's own directory, `<main>` below). A
+  worktree has neither: a brief for a worktree agent names them by absolute path
+  (`WORK_ITEMS_ROOT=<main>/.work-items`, `<main>/.claude-sandbox/…`).
+- Commit ids cited from before the rewrite are old ids. The new one, from the main checkout:
+  `awk -v s=<id> 'index($1,s)==1{print $2}' .claude-sandbox/reports/metadata-migration/commit-map`
   (all zeros: the commit touched only removed paths and is gone).
 - `.git/pre-metadata-migration.bundle` (and `.git/pre-history-rewrite.bundle` where the
   rewrite ran later) holds the old history, the store's included; never delete it. Read it in
-  a throwaway clone, never in this repo:
-  `t=$(mktemp -d) && git clone -q --bare /home/rt/work/src/github.com/kmacmcfarlane/image-dataset-tool/.git/pre-metadata-migration.bundle "$t/old.git"`,
+  a throwaway clone, never in this repo; from the main checkout:
+  `t=$(mktemp -d) && git clone -q --bare "$PWD/.git/pre-metadata-migration.bundle" "$t/old.git"`,
   then e.g. `git -C "$t/old.git" log --oneline --all -- .claude-sandbox/work/items/<id>.md`
   (`.work/items/…` for a root store) and `git -C "$t/old.git" show <commit>:<path>`.
 - A pre-push hook refuses any push whose history touches a path listed in
