@@ -40,7 +40,6 @@ data/
 .env
 .env.*
 !.env.example
-!.claude-sandbox/env.example
 
 # Logs
 *.log
@@ -51,8 +50,6 @@ logs/
 
 # Local config (gitignored; use config.yaml.example as template)
 config.yaml
-
-# Claude sandbox local mounts (gitignored; use .claude-sandbox.example.yaml as template)
 
 # E2E test artifacts
 .e2e/
@@ -73,8 +70,7 @@ docs/spike-poc/*/output/
 
 # Temp files from container
 ./tmp/
-.claude-sandbox/env
-.claude-sandbox/temp/
-.claude-sandbox/ralph/
-!.claude-sandbox/config.yaml
-!.claude-sandbox/Dockerfile
+
+# Agent metadata (its own git repo) and the work-item store
+/.claude-sandbox/
+/.work-items/
