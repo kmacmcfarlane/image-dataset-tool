@@ -1,0 +1,17 @@
+{
+  "items": [
+    {
+      "id": "3001234567890123458_53611243",
+      "media_type": 2,
+      "taken_at": 1716200000,
+      "image_versions2": {
+        "candidates": [
+          {"url": "https://scontent.cdninstagram.com/v/video_thumb.jpg", "width": 1080, "height": 1920}
+        ]
+      }
+    }
+  ],
+  "more_available": false,
+  "next_max_id": "",
+  "status": "ok"
+}

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -59,13 +60,17 @@ func validateCookieKeys(platform, cookies string) []string {
 	return missing
 }
 
+// IGSessionTTL is how long imported IG session cookies are trusted before the
+// session counts as expired (docs/ig-client-spike.md §9.3: 7-day default).
+const IGSessionTTL = 7 * 24 * time.Hour
+
 // AccountRepository defines the persistence interface used by AccountService.
 type AccountRepository interface {
 	Create(a *model.Account) error
 	Get(id string) (*model.Account, error)
 	GetDetail(id string) (*model.AccountDetail, error)
 	List() ([]*model.Account, error)
-	UpdateCookies(id string, cookies []byte) error
+	UpdateCookiesWithSessionExpiry(id string, cookies []byte, expiresAt time.Time) error
 	Delete(id string) error
 	HandleExists(platform, handle string) (bool, error)
 }
@@ -150,8 +155,8 @@ func (s *AccountService) List() ([]*model.Account, error) {
 	return s.store.List()
 }
 
-// UpdateCookies encrypts and stores cookies for an account.
-// Cookies content is never logged.
+// UpdateCookies encrypts and stores cookies for an account and sets the
+// session expiry to now + IGSessionTTL. Cookies content is never logged.
 func (s *AccountService) UpdateCookies(id string, cookies string) error {
 	acct, err := s.store.Get(id)
 	if err != nil {
@@ -166,11 +171,12 @@ func (s *AccountService) UpdateCookies(id string, cookies string) error {
 			acct.Platform, strings.Join(missing, ", "), ErrBadRequest)
 	}
 
-	if err := s.store.UpdateCookies(id, []byte(cookies)); err != nil {
+	expiresAt := time.Now().UTC().Add(IGSessionTTL)
+	if err := s.store.UpdateCookiesWithSessionExpiry(id, []byte(cookies), expiresAt); err != nil {
 		return fmt.Errorf("update cookies: %w", err)
 	}
 
-	slog.Info("Account cookies updated", "id", id)
+	slog.Info("Account cookies updated", "id", id, "session_expires_at", expiresAt.Format(time.RFC3339))
 	return nil
 }
 

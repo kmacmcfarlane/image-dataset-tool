@@ -49,15 +49,16 @@ the container via `.claude-sandbox/config.yaml`.
 
 Top-level entity. An account can be linked to multiple subjects.
 
-| Column        | Type    | Notes                            |
-| ------------- | ------- | -------------------------------- |
-| id            | TEXT PK | UUID                             |
-| platform      | TEXT    | e.g. "instagram"                 |
-| handle        | TEXT    | Account handle                   |
-| cookies_blob  | BLOB    | AES-256-GCM encrypted            |
-| last_login_at | TEXT    | ISO 8601, nullable               |
-| created_at    | TEXT    | ISO 8601                         |
-| updated_at    | TEXT    | ISO 8601                         |
+| Column             | Type    | Notes                            |
+| ------------------ | ------- | -------------------------------- |
+| id                 | TEXT PK | UUID                             |
+| platform           | TEXT    | e.g. "instagram"                 |
+| handle             | TEXT    | Account handle                   |
+| cookies_blob       | BLOB    | AES-256-GCM encrypted            |
+| last_login_at      | TEXT    | ISO 8601, nullable               |
+| session_expires_at | TEXT    | ISO 8601, nullable. Session TTL expiry, set to cookie import time + 7 days on every cookie import; NULL (never imported) counts as expired |
+| created_at         | TEXT    | ISO 8601                         |
+| updated_at         | TEXT    | ISO 8601                         |
 
 **Unique constraint**: `(platform, handle)`.
 
@@ -191,3 +192,24 @@ Per-job log entries with level filtering. UI defaults to showing warning and abo
 | value_encrypted | BLOB    | AES-256-GCM encrypted     |
 | created_at      | TEXT    | ISO 8601                  |
 | updated_at      | TEXT    | ISO 8601                  |
+
+### ig_request_log
+
+Observability log for all Instagram API requests. Every call to the IG REST API
+(including each 429 backoff retry and calls that fail in transport) is recorded
+here for throttle/denial analysis and IP rotation tracking.
+
+| Column           | Type       | Notes                                   |
+| ---------------- | ---------- | --------------------------------------- |
+| id               | INTEGER PK | Auto-increment                          |
+| timestamp        | TEXT       | ISO 8601 (UTC)                          |
+| account_id       | TEXT FK    | -> accounts.id                          |
+| endpoint         | TEXT       | Path + query, e.g. `/api/v1/feed/user/{id}/?count=12` |
+| http_status      | INTEGER    | HTTP response code; 0 if no response (transport error) |
+| is_throttled     | INTEGER    | 1 if 429, or a `feedback_required` / "Please wait a few minutes" rate-limit message |
+| is_denied        | INTEGER    | 1 if 401/403, a `checkpoint_required` / `challenge_required` / `login_required` message, or a redirect to `/accounts/login` or `/challenge` |
+| response_time_ms | INTEGER    | Request latency in milliseconds         |
+| public_ip        | TEXT       | External IP used for the request        |
+| error_detail     | TEXT       | Truncated error body, redirect target or transport error (max 500 bytes) |
+
+**Indexes**: `account_id`, `timestamp`.

@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "id": "3001234567890123457_53611243",
+      "media_type": 8,
+      "taken_at": 1716100000,
+      "image_versions2": {
+        "candidates": [
+          {"url": "https://scontent.cdninstagram.com/v/cover.jpg", "width": 1080, "height": 1080}
+        ]
+      },
+      "carousel_media": [
+        {
+          "id": "3001234567890123457_53611243_1",
+          "media_type": 1,
+          "image_versions2": {
+            "candidates": [
+              {"url": "https://scontent.cdninstagram.com/v/slide0_small.jpg", "width": 320, "height": 320},
+              {"url": "https://scontent.cdninstagram.com/v/slide0_large.jpg", "width": 1440, "height": 1080}
+            ]
+          }
+        },
+        {
+          "id": "3001234567890123457_53611243_2",
+          "media_type": 1,
+          "image_versions2": {
+            "candidates": [
+              {"url": "https://scontent.cdninstagram.com/v/slide1_large.jpg", "width": 1080, "height": 1350}
+            ]
+          }
+        },
+        {
+          "id": "3001234567890123457_53611243_3",
+          "media_type": 2,
+          "image_versions2": {
+            "candidates": [
+              {"url": "https://scontent.cdninstagram.com/v/slide2_video_thumb.jpg", "width": 1080, "height": 1080}
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "more_available": false,
+  "next_max_id": "",
+  "status": "ok"
+}

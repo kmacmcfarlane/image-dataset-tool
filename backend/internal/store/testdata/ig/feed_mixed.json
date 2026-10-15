@@ -1,0 +1,65 @@
+{
+  "items": [
+    {
+      "id": "3001000000000000001_53611243",
+      "media_type": 1,
+      "taken_at": 1716000000,
+      "image_versions2": {
+        "candidates": [
+          {"url": "https://scontent.cdninstagram.com/v/img1.jpg", "width": 1080, "height": 1080}
+        ]
+      }
+    },
+    {
+      "id": "3001000000000000002_53611243",
+      "media_type": 2,
+      "taken_at": 1716100000,
+      "image_versions2": {
+        "candidates": [
+          {"url": "https://scontent.cdninstagram.com/v/vid1_thumb.jpg", "width": 1080, "height": 1920}
+        ]
+      }
+    },
+    {
+      "id": "3001000000000000003_53611243",
+      "media_type": 8,
+      "taken_at": 1716200000,
+      "image_versions2": {
+        "candidates": []
+      },
+      "carousel_media": [
+        {
+          "id": "3001000000000000003_53611243_1",
+          "media_type": 1,
+          "image_versions2": {
+            "candidates": [
+              {"url": "https://scontent.cdninstagram.com/v/car_slide0.jpg", "width": 1080, "height": 1080}
+            ]
+          }
+        },
+        {
+          "id": "3001000000000000003_53611243_2",
+          "media_type": 1,
+          "image_versions2": {
+            "candidates": [
+              {"url": "https://scontent.cdninstagram.com/v/car_slide1.jpg", "width": 720, "height": 720}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "3001000000000000004_53611243",
+      "media_type": 1,
+      "taken_at": 1716300000,
+      "image_versions2": {
+        "candidates": [
+          {"url": "https://scontent.cdninstagram.com/v/img2.jpg", "width": 1440, "height": 1080}
+        ]
+      }
+    }
+  ],
+  "more_available": true,
+  "next_max_id": "2999000000000000000_53611243",
+  "status": "ok"
+}
