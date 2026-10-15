@@ -49,15 +49,16 @@ the container via `.claude-sandbox/config.yaml`.
 
 Top-level entity. An account can be linked to multiple subjects.
 
-| Column        | Type    | Notes                            |
-| ------------- | ------- | -------------------------------- |
-| id            | TEXT PK | UUID                             |
-| platform      | TEXT    | e.g. "instagram"                 |
-| handle        | TEXT    | Account handle                   |
-| cookies_blob  | BLOB    | AES-256-GCM encrypted            |
-| last_login_at | TEXT    | ISO 8601, nullable               |
-| created_at    | TEXT    | ISO 8601                         |
-| updated_at    | TEXT    | ISO 8601                         |
+| Column             | Type    | Notes                            |
+| ------------------ | ------- | -------------------------------- |
+| id                 | TEXT PK | UUID                             |
+| platform           | TEXT    | e.g. "instagram"                 |
+| handle             | TEXT    | Account handle                   |
+| cookies_blob       | BLOB    | AES-256-GCM encrypted            |
+| last_login_at      | TEXT    | ISO 8601, nullable               |
+| session_expires_at | TEXT    | ISO 8601, nullable. Session TTL expiry (default 7 days from cookie import) |
+| created_at         | TEXT    | ISO 8601                         |
+| updated_at         | TEXT    | ISO 8601                         |
 
 **Unique constraint**: `(platform, handle)`.
 
@@ -191,3 +192,23 @@ Per-job log entries with level filtering. UI defaults to showing warning and abo
 | value_encrypted | BLOB    | AES-256-GCM encrypted     |
 | created_at      | TEXT    | ISO 8601                  |
 | updated_at      | TEXT    | ISO 8601                  |
+
+### ig_request_log
+
+Observability log for all Instagram API requests. Every call to the IG REST API
+is recorded here for throttle/denial analysis and IP rotation tracking.
+
+| Column           | Type       | Notes                                   |
+| ---------------- | ---------- | --------------------------------------- |
+| id               | INTEGER PK | Auto-increment                          |
+| timestamp        | TEXT       | ISO 8601 (UTC)                          |
+| account_id       | TEXT FK    | -> accounts.id                          |
+| endpoint         | TEXT       | e.g. `/api/v1/feed/user/{id}/`          |
+| http_status      | INTEGER    | HTTP response code                      |
+| is_throttled     | INTEGER    | 1 if 429 rate-limit response            |
+| is_denied        | INTEGER    | 1 if 401/403/checkpoint response        |
+| response_time_ms | INTEGER    | Request latency in milliseconds         |
+| public_ip        | TEXT       | External IP used for the request        |
+| error_detail     | TEXT       | Truncated error body (max 500 chars)    |
+
+**Indexes**: `account_id`, `timestamp`.

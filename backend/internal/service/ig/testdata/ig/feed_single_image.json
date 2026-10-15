@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "id": "3001234567890123456_53611243",
+      "media_type": 1,
+      "taken_at": 1716000000,
+      "image_versions2": {
+        "candidates": [
+          {"url": "https://scontent.cdninstagram.com/v/small.jpg", "width": 320, "height": 320},
+          {"url": "https://scontent.cdninstagram.com/v/medium.jpg", "width": 640, "height": 640},
+          {"url": "https://scontent.cdninstagram.com/v/large.jpg", "width": 1080, "height": 1080}
+        ]
+      }
+    }
+  ],
+  "more_available": true,
+  "next_max_id": "2999999999999999999_53611243",
+  "status": "ok"
+}

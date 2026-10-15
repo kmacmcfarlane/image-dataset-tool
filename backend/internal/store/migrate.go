@@ -193,6 +193,29 @@ ALTER TABLE job_runs ADD COLUMN output_path TEXT;
 ALTER TABLE job_runs ADD COLUMN sample_count INTEGER;
 `,
 	},
+	{
+		version: 4,
+		name:    "add_ig_request_log_and_session_expiry",
+		sql: `
+CREATE TABLE IF NOT EXISTS ig_request_log (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	timestamp TEXT NOT NULL,
+	account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+	endpoint TEXT NOT NULL,
+	http_status INTEGER NOT NULL,
+	is_throttled INTEGER NOT NULL DEFAULT 0,
+	is_denied INTEGER NOT NULL DEFAULT 0,
+	response_time_ms INTEGER NOT NULL DEFAULT 0,
+	public_ip TEXT NOT NULL DEFAULT '',
+	error_detail TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_ig_request_log_account_id ON ig_request_log(account_id);
+CREATE INDEX IF NOT EXISTS idx_ig_request_log_timestamp ON ig_request_log(timestamp);
+
+ALTER TABLE accounts ADD COLUMN session_expires_at TEXT;
+`,
+	},
 }
 
 // Migrate applies all pending migrations to the database.

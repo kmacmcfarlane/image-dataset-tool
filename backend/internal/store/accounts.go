@@ -139,6 +139,48 @@ func (s *AccountStore) UpdateCookies(id string, cookies []byte) error {
 	return nil
 }
 
+// UpdateSessionExpiry sets the session_expires_at timestamp for an account.
+func (s *AccountStore) UpdateSessionExpiry(id string, expiresAt time.Time) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	result, err := s.db.Exec(
+		`UPDATE accounts SET session_expires_at = ?, updated_at = ? WHERE id = ?`,
+		expiresAt.UTC().Format(time.RFC3339), now, id,
+	)
+	if err != nil {
+		return fmt.Errorf("update session_expires_at: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check rows affected: %w", err)
+	}
+	if affected == 0 {
+		return fmt.Errorf("account %q: %w", id, ErrNotFound)
+	}
+	return nil
+}
+
+// GetSessionExpiry returns the session_expires_at timestamp for an account.
+// Returns zero time if not set.
+func (s *AccountStore) GetSessionExpiry(id string) (time.Time, error) {
+	var expiresAt sql.NullString
+	err := s.db.QueryRow(`SELECT session_expires_at FROM accounts WHERE id = ?`, id).Scan(&expiresAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return time.Time{}, fmt.Errorf("account %q: %w", id, ErrNotFound)
+		}
+		return time.Time{}, fmt.Errorf("get session_expires_at: %w", err)
+	}
+	if !expiresAt.Valid || expiresAt.String == "" {
+		return time.Time{}, nil
+	}
+	t, err := time.Parse(time.RFC3339, expiresAt.String)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("parse session_expires_at: %w", err)
+	}
+	return t, nil
+}
+
 // GetCookies retrieves and decrypts cookies for an account (internal use only).
 func (s *AccountStore) GetCookies(id string) ([]byte, error) {
 	var blob []byte
