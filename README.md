@@ -1,6 +1,6 @@
 # local-web-app
 
-A template for local-first web applications. Runs on Linux via Docker and provides a browser-based UI backed by a Go API server. Includes a complete Claude Code agent workflow with backlog tracking, development practices, and Discord notifications.
+A template for local-first web applications. Runs on Linux via Docker and provides a browser-based UI backed by a Go API server.
 
 ## Tech stack
 
@@ -93,7 +93,6 @@ your-project/
 │   ├── Dockerfile            # nginx production image
 │   └── Dockerfile.dev        # Vite dev server
 ├── docs/                     # Architecture, database, and API docs
-├── .claude-sandbox/agent/                    # Agent workflow docs and backlog
 ├── scripts/                  # Tooling scripts (MCP servers)
 ├── docker-compose.yml        # Production compose
 ├── docker-compose.dev.yml    # Dev overlay
@@ -140,25 +139,9 @@ Frontend tests use Vitest and can run directly if Node.js 22 is available:
 cd frontend && npx vitest run
 ```
 
-## Agent workflow
+## Development tooling
 
-This project includes a complete Claude Code agent workflow. See:
-
-- [CLAUDE.md](CLAUDE.md) — Always-loaded operating context
-- [.claude-sandbox/agent/AGENT_FLOW.md](.claude-sandbox/agent/AGENT_FLOW.md) — Deterministic development loop
-- [.claude-sandbox/agent/DEVELOPMENT_PRACTICES.md](.claude-sandbox/agent/DEVELOPMENT_PRACTICES.md) — Engineering standards
-- [.claude-sandbox/agent/TEST_PRACTICES.md](.claude-sandbox/agent/TEST_PRACTICES.md) — Testing standards
-- [.claude-sandbox/agent/PRD.md](.claude-sandbox/agent/PRD.md) — Product requirements (write yours here)
-- [.claude-sandbox/agent/backlog.yaml](.claude-sandbox/agent/backlog.yaml) — Story tracker
-
-### Running with claude-sandbox
-
-```bash
-make claude              # Interactive Claude Code session
-make claude-resume       # Resume previous session
-make ralph               # Ralph loop (interactive)
-make ralph-auto          # Ralph loop (autonomous)
-```
+I develop this project with the Claude Code tooling at [github.com/kmacmcfarlane](https://github.com/kmacmcfarlane); contributors are welcome to use the same setup, but nothing here requires it.
 
 ## License
 
