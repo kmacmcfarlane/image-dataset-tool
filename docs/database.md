@@ -56,7 +56,7 @@ Top-level entity. An account can be linked to multiple subjects.
 | handle             | TEXT    | Account handle                   |
 | cookies_blob       | BLOB    | AES-256-GCM encrypted            |
 | last_login_at      | TEXT    | ISO 8601, nullable               |
-| session_expires_at | TEXT    | ISO 8601, nullable. Session TTL expiry (default 7 days from cookie import) |
+| session_expires_at | TEXT    | ISO 8601, nullable. Session TTL expiry, set to cookie import time + 7 days on every cookie import; NULL (never imported) counts as expired |
 | created_at         | TEXT    | ISO 8601                         |
 | updated_at         | TEXT    | ISO 8601                         |
 
@@ -196,19 +196,20 @@ Per-job log entries with level filtering. UI defaults to showing warning and abo
 ### ig_request_log
 
 Observability log for all Instagram API requests. Every call to the IG REST API
-is recorded here for throttle/denial analysis and IP rotation tracking.
+(including each 429 backoff retry and calls that fail in transport) is recorded
+here for throttle/denial analysis and IP rotation tracking.
 
 | Column           | Type       | Notes                                   |
 | ---------------- | ---------- | --------------------------------------- |
 | id               | INTEGER PK | Auto-increment                          |
 | timestamp        | TEXT       | ISO 8601 (UTC)                          |
 | account_id       | TEXT FK    | -> accounts.id                          |
-| endpoint         | TEXT       | e.g. `/api/v1/feed/user/{id}/`          |
-| http_status      | INTEGER    | HTTP response code                      |
+| endpoint         | TEXT       | Path + query, e.g. `/api/v1/feed/user/{id}/?count=12` |
+| http_status      | INTEGER    | HTTP response code; 0 if no response (transport error) |
 | is_throttled     | INTEGER    | 1 if 429 rate-limit response            |
-| is_denied        | INTEGER    | 1 if 401/403/checkpoint response        |
+| is_denied        | INTEGER    | 1 if 401/403, or a `checkpoint_required` / `challenge_required` / `login_required` message |
 | response_time_ms | INTEGER    | Request latency in milliseconds         |
 | public_ip        | TEXT       | External IP used for the request        |
-| error_detail     | TEXT       | Truncated error body (max 500 chars)    |
+| error_detail     | TEXT       | Truncated error body or transport error (max 500 bytes) |
 
 **Indexes**: `account_id`, `timestamp`.

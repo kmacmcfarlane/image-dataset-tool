@@ -1,18 +1,19 @@
 package ig
 
-import "errors"
+import "github.com/kmacmcfarlane/image-dataset-tool/backend/internal/store"
 
-// Sentinel errors for the IG client.
+// Sentinel errors returned by IGClient implementations. They are the same
+// values the store implementation returns, so errors.Is works across layers.
 var (
 	// ErrSessionExpired indicates the session TTL has elapsed.
-	ErrSessionExpired = errors.New("ig session expired")
+	ErrSessionExpired = store.ErrIGSessionExpired
 
 	// ErrThrottled indicates a 429 response from Instagram.
-	ErrThrottled = errors.New("ig request throttled (429)")
+	ErrThrottled = store.ErrIGThrottled
 
 	// ErrDenied indicates a 401/403/checkpoint response from Instagram.
-	ErrDenied = errors.New("ig request denied (auth failure)")
+	ErrDenied = store.ErrIGDenied
 
 	// ErrNoSession indicates no cookies are configured for the account.
-	ErrNoSession = errors.New("no ig session cookies configured")
+	ErrNoSession = store.ErrIGNoSession
 )

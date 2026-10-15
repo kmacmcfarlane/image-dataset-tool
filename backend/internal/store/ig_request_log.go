@@ -47,7 +47,7 @@ func (s *IGRequestLogStore) LastIPForAccount(accountID string) (string, error) {
 	err := s.db.QueryRow(`
 		SELECT public_ip FROM ig_request_log
 		WHERE account_id = ? AND public_ip != ''
-		ORDER BY timestamp DESC
+		ORDER BY timestamp DESC, id DESC
 		LIMIT 1`, accountID).Scan(&ip)
 	if err != nil {
 		if err == sql.ErrNoRows {

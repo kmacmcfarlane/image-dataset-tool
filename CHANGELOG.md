@@ -4,20 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-### S-014: IGClient interface + HTTPIGClient implementation
-- `IGClient` interface in `internal/service/ig/` with `FetchProfile()`, `FetchPosts()`, `DownloadMedia()`, `SessionValid()`
-- `HTTPIGClient` implementation using `net/http`; hits REST endpoint `/api/v1/feed/user/{id}/?count={n}` with browser session cookies
-- Cookie jar imported from browser devtools (raw cookie string); session TTL guard checks `session_expires_at` before each API call
-- Carousel support: `media_type=8` iterates `carousel_media[]` sub-items; skips video (`media_type=2`) with logged reason
-- CDN downloads use `Referer` header only (no session cookies)
-- `ig_request_log` SQLite table (migration v4) for request observability: timestamp, account_id, endpoint, http_status, is_throttled, is_denied, response_time_ms, public_ip, error_detail
-- On 429: logs `is_throttled=true`, returns `ErrThrottled`, sends Discord warning
-- On 401/403: logs `is_denied=true`, returns `ErrDenied`, sends Discord alert
-- On session expiry: halts job, sends Discord alert
+### S-014: IGClient interface + HTTPIGClient implementation (autonomous phase; live-fetch AC still open)
+- `IGClient` interface in `internal/service/ig/` with `FetchProfile()`, `FetchPosts()`, `DownloadMedia()`, `SessionValid()`, plus sentinel errors `ErrSessionExpired`, `ErrThrottled`, `ErrDenied`, `ErrNoSession`
+- `HTTPIGClient` implementation in `internal/store/` using `net/http`; hits REST endpoint `/api/v1/feed/user/{id}/?count={n}` (query values escaped) with browser session cookies
+- Cookie import (`PUT /v1/accounts/{id}/cookies`) now sets `accounts.session_expires_at` to now + 7 days; session TTL guard checks it before each API call (including each retry) and halts with a Discord alert on expiry
+- Carousel support: `media_type=8` iterates `carousel_media[]` sub-items; video posts and video slides (`media_type=2`) are skipped with a logged reason; posts left with no image are skipped
+- `FetchProfile` reads username and full name from the first post's owner (one `count=1` feed request)
+- CDN downloads use `Referer` header only (no session cookies); written via temp file + rename, plain file names only
+- `ig_request_log` SQLite table (migration v4) for request observability: timestamp, account_id, endpoint, http_status, is_throttled, is_denied, response_time_ms, public_ip, error_detail; one row per request, including 429 retries and transport failures (http_status 0)
+- On 429: logs `is_throttled=true`, sends one Discord warning, retries with exponential backoff (default 3 retries, 30s doubling, 5m cap), then returns `ErrThrottled`
+- On 401/403 or a `checkpoint_required` / `challenge_required` / `login_required` message (any HTTP status): logs `is_denied=true`, returns `ErrDenied`, sends Discord alert; other `status: fail` responses return an error with the body in `error_detail`
 - Public IP resolved via `https://api.ipify.org` on job start; IP rotation check warns via Discord if same IP as last session
-- `session_expires_at` column added to `accounts` table with get/set store methods
-- 23 unit tests with `httptest.Server`: request construction, cookie/header injection, fixture-based feed parsing (single image, carousel, video skip, mixed), error paths (429/401/403), IP rotation, session TTL
-- 6 store-level tests for `ig_request_log` insert and last-IP query
+- Tests with `httptest.Server`, fake clock and fake sleeper (no real sleeps or network): request construction and escaping, fixture-based parsing, skip logging, denial/checkpoint/throttle/backoff paths, transport-failure logging, `DownloadMedia` failure paths; store tests for `ig_request_log` and session expiry
+- The `[INTERACTIVE]` live-fetch acceptance line (real profile, captured fixtures) is still open; the story stays blocked on it
 
 ### S-016: Sample writer — post-processing, dedup, thumbnails
 - `media.process` pipeline consumer: SHA-256 + pHash dedup (per-subject mutex), thumbnail generation (768px shortest edge), atomic manifest write, `INSERT OR IGNORE` for redelivery idempotency

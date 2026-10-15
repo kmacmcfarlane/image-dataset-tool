@@ -4,6 +4,7 @@
       "id": "3001234567890123456_53611243",
       "media_type": 1,
       "taken_at": 1716000000,
+      "user": {"pk": 53611243, "username": "example_artist", "full_name": "Example Artist"},
       "image_versions2": {
         "candidates": [
           {"url": "https://scontent.cdninstagram.com/v/small.jpg", "width": 320, "height": 320},

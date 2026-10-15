@@ -128,6 +128,23 @@ var _ = Describe("IGRequestLogStore", func() {
 			Expect(ip).To(Equal("2.2.2.2"))
 		})
 
+		It("returns the later-inserted IP when two entries share the same second", func() {
+			ts := time.Date(2026, 5, 20, 12, 0, 0, 0, time.UTC)
+			for _, ip := range []string{"4.4.4.4", "5.5.5.5"} {
+				Expect(logStore.Insert(&model.IGRequestLog{
+					Timestamp:  ts,
+					AccountID:  "acc-1",
+					Endpoint:   "/api/v1/feed/user/53611243/",
+					HTTPStatus: 200,
+					PublicIP:   ip,
+				})).To(Succeed())
+			}
+
+			ip, err := logStore.LastIPForAccount("acc-1")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ip).To(Equal("5.5.5.5"))
+		})
+
 		It("skips entries with empty public IP", func() {
 			entry1 := &model.IGRequestLog{
 				Timestamp:      time.Date(2026, 5, 20, 10, 0, 0, 0, time.UTC),

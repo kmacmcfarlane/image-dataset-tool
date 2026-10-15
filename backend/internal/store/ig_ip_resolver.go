@@ -1,4 +1,4 @@
-package ig
+package store
 
 import (
 	"fmt"
